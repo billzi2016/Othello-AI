@@ -22,6 +22,8 @@ https://billzi2016.github.io/Othello-AI/
 - Up to 4 seconds of thinking time per move.
 - Web Worker pool using about 90% of local CPU threads by default.
 - `coi-serviceworker.js` support for `crossOriginIsolated` on static hosting.
+- Search statistics panel showing depth, score, nodes, NPS, and time for each AI move.
+- Yellow AI legal-move highlights while the engine is thinking.
 
 ## Project Layout
 
@@ -117,6 +119,7 @@ Search strategy:
 - **Exact endgame search**: when few empty squares remain, the engine searches directly to the end of the game instead of relying on heuristics.
 - **Stability-aware evaluation**: stable discs, corners, mobility, frontier discs, parity, and terminal disc count are evaluated to improve late-game decisions.
 - **Web Worker parallelism**: root moves are split across Workers using about 90% of available CPU threads, keeping the UI responsive while the AI searches.
+- **Search telemetry**: every AI move reports depth, Minimax score, visited nodes, nodes per second, and elapsed time to the side panel.
 
 ## Why coi-serviceworker.js Is Needed
 

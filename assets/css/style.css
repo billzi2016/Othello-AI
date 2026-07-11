@@ -37,13 +37,13 @@
 
 
 body {
-    height: 100%;
+    min-height: 100%;
     padding-top: 36px;
     display: flex;
     align-items: flex-start;
     justify-content: center;
     background: #727272;
-    overflow: hidden;
+    overflow-x: hidden;
 }
 
 
@@ -58,6 +58,104 @@ body {
 #content #content-title {
     width: var(--board-size);
     justify-content: space-between;
+}
+
+#game-layout {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 18px;
+}
+
+#ai-panel {
+    width: min(430px, calc(100vw - 32px));
+    max-height: calc(var(--board-size) + (var(--board-border) * 4));
+    padding: 14px;
+    color: #e8eaef;
+    background: #20242b;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.22);
+    overflow: hidden;
+}
+
+#ai-panel-title {
+    font-size: 18px;
+    font-weight: 700;
+}
+
+#ai-panel-subtitle {
+    margin-top: 4px;
+    color: #aeb5c2;
+    font-size: 13px;
+    line-height: 1.35;
+}
+
+#ai-table-wrap {
+    margin-top: 12px;
+    max-height: calc(var(--board-size) - 110px);
+    overflow: auto;
+}
+
+#ai-stats-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+#ai-stats-table th,
+#ai-stats-table td {
+    padding: 7px 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    text-align: left;
+    white-space: nowrap;
+}
+
+#ai-stats-table th {
+    position: sticky;
+    top: 0;
+    color: #b8bfcc;
+    background: #20242b;
+    font-weight: 700;
+}
+
+#ai-stats-table tbody tr:nth-child(odd) {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+#ai-stats-empty td {
+    color: #9aa2af;
+    text-align: center;
+}
+
+#ai-current {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    color: #d8deea;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.score-positive {
+    color: #78c7ff;
+}
+
+.score-negative {
+    color: #ffd36b;
+}
+
+.score-neutral {
+    color: #e8eaef;
+}
+
+.source-ai {
+    color: #78c7ff;
+    font-weight: 700;
+}
+
+.source-human {
+    color: #f4d06f;
+    font-weight: 700;
 }
 
 
@@ -179,5 +277,20 @@ body {
 @media (min-width: 1024px) {
     :root {
         --board-size: 620px;
+    }
+}
+
+@media (max-width: 1120px) {
+    #game-layout {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    #ai-panel {
+        max-height: none;
+    }
+
+    #ai-table-wrap {
+        max-height: 260px;
     }
 }

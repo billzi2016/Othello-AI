@@ -81,6 +81,7 @@ struct SearchCtx {
     deadline_ms: f64,
     root_black: bool,
     timed_out: bool,
+    nodes: u64,
     tt: HashMap<u128, TTEntry>,
     killers: [[u8; 2]; MAX_PLY + 1],
     history: [i32; 64],
@@ -94,7 +95,8 @@ struct SearchCtx {
 /// - `think_time_ms`：这一组根节点最多搜索多久。
 /// - `allowed_moves`：JS 分配给当前 Worker 的根节点候选点，按 `[r,c,r,c,...]` 编码。
 ///
-/// 返回值用简单 CSV 字符串避免引入额外序列化依赖：`row,col,score,depth`。
+/// 返回值用简单 CSV 字符串避免引入额外序列化依赖：
+/// `row,col,score,depth,nodes,elapsed_ms,nps`。
 #[wasm_bindgen]
 pub fn search_best_move(
     cells: &[i8],
@@ -105,15 +107,17 @@ pub fn search_best_move(
     let board = board_from_cells(cells);
     let root_moves = decode_allowed_moves(allowed_moves, board, is_black_turn);
     if root_moves.is_empty() {
-        return "-1,-1,0,0".to_string();
+        return "-1,-1,0,0,0,0,0".to_string();
     }
 
     // 给 JS 消息传递和动画留一点余量，避免刚好压线造成体感卡顿。
     let budget = think_time_ms.saturating_sub(30).max(50);
+    let started_ms = now_ms();
     let mut ctx = SearchCtx {
-        deadline_ms: now_ms() + budget as f64,
+        deadline_ms: started_ms + budget as f64,
         root_black: is_black_turn,
         timed_out: false,
+        nodes: 0,
         tt: HashMap::with_capacity(262_144),
         killers: [[u8::MAX; 2]; MAX_PLY + 1],
         history: [0; 64],
@@ -159,7 +163,23 @@ pub fn search_best_move(
         }
     }
 
-    format!("{},{},{},{}", best.index / 8, best.index % 8, best.score, best.depth)
+    let elapsed_ms = (now_ms() - started_ms).max(0.0).round() as u64;
+    let nps = if elapsed_ms > 0 {
+        ((ctx.nodes as f64) * 1000.0 / elapsed_ms as f64).round() as u64
+    } else {
+        ctx.nodes
+    };
+
+    format!(
+        "{},{},{},{},{},{},{}",
+        best.index / 8,
+        best.index % 8,
+        best.score,
+        best.depth,
+        ctx.nodes,
+        elapsed_ms,
+        nps
+    )
 }
 
 impl SearchCtx {
@@ -187,6 +207,7 @@ fn negamax(
     ply: usize,
     ctx: &mut SearchCtx,
 ) -> i32 {
+    ctx.nodes = ctx.nodes.saturating_add(1);
     if ctx.expired() {
         return evaluate(board, ctx.root_black);
     }

@@ -3,7 +3,7 @@
  *
  * Worker 不碰 DOM，只做两件事：
  * 1. 加载 wasm-pack 生成的 Rust/Wasm 模块。
- * 2. 接收主线程分配的根节点候选步，调用 Rust 搜索并返回最佳结果。
+ * 2. 接收主线程分配的根节点候选步，调用 Rust 搜索并返回最佳结果和搜索统计。
  *
  * 这种拆分能让 UI 线程保持流畅，也方便 ai-manager 用约 90% CPU 并行跑多个 Worker。
  */
@@ -59,7 +59,10 @@ self.onmessage = async (event) => {
                     r: parts[0],
                     c: parts[1],
                     score: parts[2],
-                    depth: parts[3]
+                    depth: parts[3],
+                    nodes: parts[4],
+                    timeMs: parts[5],
+                    nps: parts[6]
                 }
             });
             return;

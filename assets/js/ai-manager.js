@@ -125,9 +125,24 @@ class OthelloAIManager {
 
         return Promise.all(calls).then(results => {
             let best = null;
+            let totalNodes = 0;
+            let maxTimeMs = 0;
+            let maxDepth = 0;
             for (const result of results) {
+                if (result) {
+                    totalNodes += result.nodes || 0;
+                    maxTimeMs = Math.max(maxTimeMs, result.timeMs || 0);
+                    maxDepth = Math.max(maxDepth, result.depth || 0);
+                }
                 if (!result || result.r < 0 || result.c < 0) continue;
                 if (!best || result.score > best.score) best = result;
+            }
+            if (best) {
+                best.nodes = totalNodes;
+                best.timeMs = maxTimeMs;
+                best.depth = Math.max(best.depth || 0, maxDepth);
+                best.nps = maxTimeMs > 0 ? Math.round(totalNodes * 1000 / maxTimeMs) : totalNodes;
+                best.workerCount = chunks.length;
             }
             return best;
         });

@@ -10,7 +10,8 @@
  * - `think_time_ms`：这一组根节点最多搜索多久。
  * - `allowed_moves`：JS 分配给当前 Worker 的根节点候选点，按 `[r,c,r,c,...]` 编码。
  *
- * 返回值用简单 CSV 字符串避免引入额外序列化依赖：`row,col,score,depth`。
+ * 返回值用简单 CSV 字符串避免引入额外序列化依赖：
+ * `row,col,score,depth,nodes,elapsed_ms,nps`。
  */
 export function search_best_move(cells: Int8Array, is_black_turn: boolean, think_time_ms: number, allowed_moves: Uint8Array): string;
 

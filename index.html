@@ -29,8 +29,9 @@
                 <span class="title-counter-data">00</span>
             </div>
         </div>
-        <div id="border-frame" class="dfr aic jcc">
-            <div id="board-options" class="dfr aic jcc">
+        <div id="game-layout">
+            <div id="border-frame" class="dfr aic jcc">
+                <div id="board-options" class="dfr aic jcc">
                 <div id="menu" class="board-option-type dfr aic jcc">
                     <div id="menu-content" class="board-option-type-content dfr aic jcc">
                         <div id="startbtn" class="board-option-type-btn dfr aic jcc">
@@ -75,8 +76,8 @@
                     </div>
                 </div>
             </div>
-            <div id="board-container">
-                <table id="board" class="b">
+                <div id="board-container">
+                    <table id="board" class="b">
                     <tr id="r0" class="br">
                         <td id="c0" class="bc"></td>
                         <td id="c1" class="bc"></td>
@@ -157,8 +158,36 @@
                         <td id="c6" class="bc"></td>
                         <td id="c7" class="bc"></td>
                     </tr>
-                </table>
+                    </table>
+                </div>
             </div>
+            <aside id="ai-panel">
+                <div id="ai-panel-title">AI 搜索评分</div>
+                <div id="ai-panel-subtitle">记录每一步的搜索深度、节点数、耗时和 Minimax 分数。</div>
+                <div id="ai-table-wrap">
+                    <table id="ai-stats-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>方</th>
+                                <th>来源</th>
+                                <th>落子</th>
+                                <th>深度</th>
+                                <th>节点</th>
+                                <th>NPS</th>
+                                <th>耗时</th>
+                                <th>分数</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ai-stats-body">
+                            <tr id="ai-stats-empty">
+                                <td colspan="9">开始对局后显示搜索记录</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="ai-current">等待对局开始。</div>
+            </aside>
         </div>
         <div id="game-summary" class="hide">
             <span id="game-summary-text"></span>

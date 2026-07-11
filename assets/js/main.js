@@ -32,6 +32,8 @@ const WHITE = 1;
 const BLACK = -1;
 const BLACKFLIP = true;
 const WHITEFLIP = false;
+const SOURCE_HUMAN = "human";
+const SOURCE_AI = "ai";
 const defaultMAP = [
     [0, 0, 0, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 0, 0],
@@ -336,7 +338,7 @@ class Game{
                 $(`#r${i} > #c${j}`).prop("onclick", null).off("click");
             }
         }
-        $(`.tile-highlight`).css("display", "none");
+        $(`.tile-highlight`).removeClass("ai-thinking").css("display", "none");
     }
 
     GameOver(r){
@@ -374,9 +376,29 @@ class Game{
             legalMoves: available
         });
         if(!result || result.r < 0 || result.c < 0){
-            return new Point(available[0][0], available[0][1]);
+            return {
+                point: new Point(available[0][0], available[0][1]),
+                stats: null
+            };
         }
-        return new Point(result.r, result.c);
+        return {
+            point: new Point(result.r, result.c),
+            stats: result
+        };
+    }
+
+    drawAvailableForAI(){
+        /*
+         * AI 思考时也显示它的合法点，使用黄色提示。
+         *
+         * 这只是观察辅助，不绑定点击事件；真正落子仍由 Rust/Wasm 搜索返回。
+         */
+        const am = this.board.getAvailable();
+        for(let i = 0; i < am.length; i++){
+            $(`#r${am[i][0]} > #c${am[i][1]} > .tile-highlight`)
+                .addClass("ai-thinking")
+                .css("display", "unset");
+        }
     }
 
     bindHumanMoves(){
@@ -391,7 +413,14 @@ class Game{
         const am = this.board.getAvailable();
         for(let i = 0; i < am.length; i++){
             $(`#r${am[i][0]} > #c${am[i][1]}`).on("click", function(){
-                game.board.takeStep(new Point(am[i][0], am[i][1]));
+                const point = new Point(am[i][0], am[i][1]);
+                const isBlackTurn = game.board.bTurn;
+                game.board.takeStep(point);
+                recordMoveStats({
+                    isBlackTurn,
+                    point,
+                    source: SOURCE_HUMAN
+                });
                 game.clearOnClick();
             });
             $(`#r${am[i][0]} > #c${am[i][1]} > .tile-highlight`).css("display", "unset");
@@ -425,9 +454,20 @@ class Game{
 
             if(aiTurn){
                 this.clearOnClick();
+                this.drawAvailableForAI();
                 await sleep(120);
-                const move = await this.getAIMove();
-                if(move) this.board.takeStep(move);
+                const result = await this.getAIMove();
+                const move = result ? result.point : null;
+                if(move){
+                    const isBlackTurn = this.board.bTurn;
+                    this.board.takeStep(move);
+                    recordMoveStats({
+                        isBlackTurn,
+                        point: move,
+                        source: SOURCE_AI,
+                        stats: result.stats
+                    });
+                }
                 await sleep(ANIMATIONDURATION);
             }
             else if(tmpN !== this.board.n){
@@ -449,12 +489,110 @@ class Game{
          */
         while(!isGameOver(this.board.m) && !this.stopped){
             this.clearOnClick();
-            const move = await this.getAIMove();
-            if(move) this.board.takeStep(move);
+            this.drawAvailableForAI();
+            const result = await this.getAIMove();
+            const move = result ? result.point : null;
+            if(move){
+                const isBlackTurn = this.board.bTurn;
+                this.board.takeStep(move);
+                recordMoveStats({
+                    isBlackTurn,
+                    point: move,
+                    source: SOURCE_AI,
+                    stats: result.stats
+                });
+            }
             await sleep(ANIMATIONDURATION);
         }
         this.GameOver(this.board.countResult());
     }
+}
+
+let moveStatIndex = 0;
+
+function resetMoveStats(){
+    /*
+     * 新对局开始时清空右侧统计表。
+     *
+     * 复盘阶段不会自动清空；只有用户真正选择新模式开始下一局时才重置。
+     */
+    moveStatIndex = 0;
+    $("#ai-stats-body").html(`
+        <tr id="ai-stats-empty">
+            <td colspan="9">开始对局后显示搜索记录</td>
+        </tr>
+    `);
+    $("#ai-current").text("等待对局开始。");
+}
+
+function recordMoveStats({ isBlackTurn, point, source, stats = null }){
+    /*
+     * 记录一步落子。
+     *
+     * human 行只展示落子；AI 行展示 Rust/Wasm 返回的搜索深度、节点数、
+     * NPS、耗时和 Minimax 分数。这里显示的是搜索评分，不是棋子数量差。
+     */
+    moveStatIndex++;
+    $("#ai-stats-empty").remove();
+
+    const side = isBlackTurn ? "黑" : "白";
+    const sourceText = source === SOURCE_AI ? "AI" : "人类";
+    const sourceClass = source === SOURCE_AI ? "source-ai" : "source-human";
+    const pos = `${point.r},${point.c}`;
+    const depth = stats ? stats.depth : "-";
+    const nodes = stats ? formatCount(stats.nodes) : "-";
+    const nps = stats ? formatCount(stats.nps) : "-";
+    const time = stats ? `${formatNumber(stats.timeMs)}ms` : "-";
+    const score = stats ? formatScore(stats.score) : "-";
+    const scoreClass = stats ? scoreClassName(stats.score) : "score-neutral";
+
+    $("#ai-stats-body").append(`
+        <tr>
+            <td>#${moveStatIndex}</td>
+            <td>${side}</td>
+            <td class="${sourceClass}">${sourceText}</td>
+            <td>${pos}</td>
+            <td>${depth}</td>
+            <td>${nodes}</td>
+            <td>${nps}</td>
+            <td>${time}</td>
+            <td class="${scoreClass}">${score}</td>
+        </tr>
+    `);
+
+    $("#ai-current").text(
+        source === SOURCE_AI
+            ? `#${moveStatIndex} ${side}棋 AI 落子 ${pos}，深度 ${depth}，评分 ${score}，耗时 ${time}。`
+            : `#${moveStatIndex} ${side}棋 人类落子 ${pos}。`
+    );
+
+    const wrap = document.getElementById("ai-table-wrap");
+    if(wrap){
+        wrap.scrollTop = wrap.scrollHeight;
+    }
+}
+
+function formatCount(value){
+    if(value === undefined || value === null || Number.isNaN(value)) return "-";
+    if(value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+    if(value >= 1000) return `${(value / 1000).toFixed(1)}k`;
+    return `${value}`;
+}
+
+function formatNumber(value){
+    if(value === undefined || value === null || Number.isNaN(value)) return "-";
+    return `${Math.round(value)}`;
+}
+
+function formatScore(value){
+    if(value === undefined || value === null || Number.isNaN(value)) return "-";
+    return value > 0 ? `+${value}` : `${value}`;
+}
+
+function scoreClassName(value){
+    if(value > 0) return "score-positive";
+    if(value < 0) return "score-negative";
+    return "score-neutral";
 }
 
 window.onload = function(){
@@ -482,6 +620,7 @@ window.onload = function(){
 
     function startGame(isBlackAI, isWhiteAI){
         hideGameSummary();
+        resetMoveStats();
         $("#board-options").hide();
         $(".board-option-type").hide();
         if(G && G.ai){

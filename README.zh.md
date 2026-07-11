@@ -22,6 +22,8 @@ https://billzi2016.github.io/Othello-AI/
 - 浏览器端默认使用约 90% CPU Worker。
 - 使用 `coi-serviceworker.js` 在 GitHub Pages 上启用 `crossOriginIsolated`。
 - 页面文案统一为简体中文。
+- 右侧搜索评分表展示每步 AI 的深度、分数、节点数、NPS 和耗时。
+- AI 思考时用黄色标注当前可下位置。
 
 ## 项目结构
 
@@ -117,6 +119,7 @@ index = row * 8 + col
 - **终局完全搜索**：后期空格较少时直接搜索到游戏结束，避免只靠评估函数猜最终胜负。
 - **稳定子评估**：综合角、稳定子、机动性、前沿子、奇偶性和终局子数，提升中后盘判断质量。
 - **Web Worker 并行**：把根节点候选步拆给多个 Worker，默认使用约 90% CPU 线程，同时保持页面响应。
+- **搜索统计面板**：每步 AI 都会展示搜索深度、Minimax 分数、遍历节点数、每秒节点数和耗时。
 
 ## 为什么需要 coi-serviceworker.js
 
