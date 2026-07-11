@@ -1,0 +1,70 @@
+site_name: Othello AI docs
+site_url: https://billzi2016.github.io/Othello-AI/docs/
+repo_url: https://github.com/billzi2016/Othello-AI
+repo_name: billzi2016/Othello-AI
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+  language: zh
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+
+plugins:
+  - search
+  - i18n:
+      docs_structure: folder
+      languages:
+        - locale: zh
+          name: 简体中文
+          default: true
+          build: true
+        - locale: en
+          name: English
+          build: true
+          nav:
+            - Home: en/index.md
+            - Project README: en/project-readme.md
+            - Quick start: en/quick-start.md
+            - Project structure: en/project-structure.md
+            - Rust AI engine: en/rust-ai.md
+            - JavaScript runtime: en/javascript.md
+            - Wasm artifacts: en/wasm.md
+            - Browser runtime: en/browser-runtime.md
+            - GitHub Pages deployment: en/deployment.md
+            - Maintenance: en/maintenance.md
+            - PRD:
+                - MkDocs docs site PRD: en/mkdocs-prd.md
+                - GitHub Actions PRD: en/github-actions-prd.md
+            - GitHub: https://github.com/billzi2016/Othello-AI
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+
+nav:
+  - 首页: zh/README.md
+  - 文档站概览: zh/index.zh.md
+  - 项目 README: zh/project-readme.zh.md
+  - 快速开始: zh/quick-start.zh.md
+  - 项目结构: zh/project-structure.zh.md
+  - Rust AI 引擎: zh/rust-ai.zh.md
+  - JavaScript 运行层: zh/javascript.zh.md
+  - Wasm 产物: zh/wasm.zh.md
+  - 浏览器运行环境: zh/browser-runtime.zh.md
+  - GitHub Pages 部署: zh/deployment.zh.md
+  - 维护说明: zh/maintenance.zh.md
+  - PRD:
+      - MkDocs 文档站 PRD: zh/mkdocs-prd.zh.md
+      - GitHub Actions PRD: zh/github-actions-prd.zh.md
+  - GitHub: https://github.com/billzi2016/Othello-AI

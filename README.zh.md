@@ -11,6 +11,12 @@ The engine includes exact endgame search and stability-aware evaluation for stro
 https://billzi2016.github.io/Othello-AI/
 ```
 
+文档站：
+
+```text
+https://billzi2016.github.io/Othello-AI/docs/
+```
+
 ## 当前目标
 
 - 使用 Rust 实现黑白棋 AI 底层搜索。
@@ -37,6 +43,7 @@ assets/wasm/                # wasm-pack 构建输出目录
 rust-ai/                    # Rust/Wasm AI 子工程
 server.py                   # 本地线程版静态服务器，自动找空闲端口
 .github/workflows/pages.yml # GitHub Actions 构建 Wasm 并部署 Pages
+docs-site/                  # MkDocs 文档站源码，发布到 /docs/
 ```
 
 ## 本地运行
@@ -146,8 +153,10 @@ push 到 `main` 或 `master` 后，Actions 会自动：
 2. 安装 `wasm-bindgen-cli`。
 3. 编译 `rust-ai` 到 wasm32。
 4. 生成浏览器可加载的 `assets/wasm/` 文件。
-5. 上传静态站点。
-6. 部署到 GitHub Pages。
+5. 构建 MkDocs 文档站。
+6. 将文档站输出复制到 `_site/docs/`。
+7. 上传静态站点。
+8. 部署到 GitHub Pages。
 
 也可以在 GitHub Actions 页面手动触发 `Build and Deploy Pages`。
 

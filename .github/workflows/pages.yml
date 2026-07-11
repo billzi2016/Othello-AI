@@ -1,9 +1,10 @@
 # 意图：自动构建 Rust/Wasm AI 并部署 GitHub Pages。
 #
-# 工作流做三件事：
+# 工作流做四件事：
 # 1. 安装 Rust 和 wasm-bindgen-cli。
 # 2. 把 rust-ai 编译成 wasm32，再生成 assets/wasm/othello_ai.js 与 .wasm。
-# 3. 整理静态站点目录并发布到 GitHub Pages。
+# 3. 构建 docs-site 文档站，并发布到 GitHub Pages 的 /docs/ 子路径。
+# 4. 整理同一份 Pages 产物，避免文档站覆盖游戏首页。
 
 name: Build and Deploy Pages
 
@@ -61,10 +62,23 @@ jobs:
           mkdir -p ../assets/wasm
           wasm-bindgen --target web --out-dir ../assets/wasm --out-name othello_ai target/wasm32-unknown-unknown/release/othello_ai.wasm
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install docs dependencies
+        run: python -m pip install -r docs-site/requirements.txt
+
+      - name: Build documentation site
+        run: mkdocs build --strict --config-file docs-site/mkdocs.yml
+
       - name: Prepare static site artifact
         run: |
           mkdir -p _site
-          cp -R index.html coi-serviceworker.js README.md server.py assets _site/
+          cp -R index.html coi-serviceworker.js README.md README.zh.md server.py assets _site/
+          mkdir -p _site/docs
+          cp -R docs-site/site/. _site/docs/
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

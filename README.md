@@ -3,12 +3,18 @@
 Rust/Wasm Othello AI running entirely in the browser with Bitboards, alpha-beta search, and worker-based parallelism.
 The engine includes exact endgame search and stability-aware evaluation for stronger late-game decisions.
 
-[中文说明](README.zh.md)
+[中文说明](https://github.com/billzi2016/Othello-AI/blob/main/README.zh.md)
 
 ## Live Demo
 
 ```text
 https://billzi2016.github.io/Othello-AI/
+```
+
+Documentation site:
+
+```text
+https://billzi2016.github.io/Othello-AI/docs/
 ```
 
 ## Features
@@ -37,6 +43,7 @@ assets/wasm/                # Generated browser Wasm bindings
 rust-ai/                    # Rust/Wasm AI engine
 server.py                   # Threaded local static server with random free port selection
 .github/workflows/pages.yml # GitHub Actions build and Pages deployment
+docs-site/                  # MkDocs documentation site source, published under /docs/
 ```
 
 ## Local Development
@@ -146,8 +153,10 @@ On push to `main` or `master`, the workflow:
 2. Installs `wasm-bindgen-cli`.
 3. Builds `rust-ai` for `wasm32`.
 4. Generates browser-loadable files in `assets/wasm/`.
-5. Uploads the static site artifact.
-6. Deploys to GitHub Pages.
+5. Builds the MkDocs documentation site.
+6. Copies the documentation output to `_site/docs/`.
+7. Uploads the static site artifact.
+8. Deploys to GitHub Pages.
 
 The workflow can also be triggered manually from the GitHub Actions page.
 
