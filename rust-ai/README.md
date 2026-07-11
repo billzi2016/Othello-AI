@@ -8,6 +8,12 @@ Documentation page:
 https://billzi2016.github.io/Othello-AI/docs/en/rust-ai/
 ```
 
+Algorithm deep dive:
+
+```text
+https://billzi2016.github.io/Othello-AI/docs/en/algorithm-deep-dive/
+```
+
 ## Why Rust and Wasm
 
 Othello search repeatedly generates legal moves, applies moves, flips discs, and evaluates positions. Rust is a good fit for this high-frequency computation, and Wasm lets the browser run it locally without a backend service.

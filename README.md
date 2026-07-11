@@ -17,6 +17,12 @@ Documentation site:
 https://billzi2016.github.io/Othello-AI/docs/
 ```
 
+Algorithm deep dive:
+
+```text
+https://billzi2016.github.io/Othello-AI/docs/en/algorithm-deep-dive/
+```
+
 ## Features
 
 - Browser-only Othello game deployable to GitHub Pages.

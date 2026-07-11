@@ -5,7 +5,13 @@
 文档站对应页面：
 
 ```text
-https://billzi2016.github.io/Othello-AI/docs/rust-ai/
+https://billzi2016.github.io/Othello-AI/docs/rust-ai.zh/
+```
+
+算法深入说明：
+
+```text
+https://billzi2016.github.io/Othello-AI/docs/algorithm-deep-dive.zh/
 ```
 
 ## 为什么用 Rust 和 Wasm

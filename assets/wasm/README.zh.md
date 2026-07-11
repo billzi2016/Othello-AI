@@ -5,7 +5,7 @@
 文档站对应页面：
 
 ```text
-https://billzi2016.github.io/Othello-AI/docs/wasm/
+https://billzi2016.github.io/Othello-AI/docs/wasm.zh/
 ```
 
 ## 文件含义

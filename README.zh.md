@@ -17,6 +17,12 @@ https://billzi2016.github.io/Othello-AI/
 https://billzi2016.github.io/Othello-AI/docs/
 ```
 
+算法深入说明：
+
+```text
+https://billzi2016.github.io/Othello-AI/docs/algorithm-deep-dive.zh/
+```
+
 ## 当前目标
 
 - 使用 Rust 实现黑白棋 AI 底层搜索。

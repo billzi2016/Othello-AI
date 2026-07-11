@@ -32,6 +32,7 @@ plugins:
             - Project README: en/project-readme.md
             - Quick start: en/quick-start.md
             - Project structure: en/project-structure.md
+            - Algorithm deep dive: en/algorithm-deep-dive.md
             - Rust AI engine: en/rust-ai.md
             - JavaScript runtime: en/javascript.md
             - Wasm artifacts: en/wasm.md
@@ -58,6 +59,7 @@ nav:
   - 项目 README: zh/project-readme.zh.md
   - 快速开始: zh/quick-start.zh.md
   - 项目结构: zh/project-structure.zh.md
+  - 算法深入: zh/algorithm-deep-dive.zh.md
   - Rust AI 引擎: zh/rust-ai.zh.md
   - JavaScript 运行层: zh/javascript.zh.md
   - Wasm 产物: zh/wasm.zh.md
