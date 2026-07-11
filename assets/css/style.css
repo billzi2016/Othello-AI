@@ -100,6 +100,21 @@ body {
 }
 
 
+#engine-note {
+    width: min(var(--board-size), calc(100vw - 32px));
+    margin-top: 16px;
+    padding-bottom: 12px;
+    color: #f0f0f0;
+    font-size: 14px;
+    line-height: 1.6;
+    text-align: center;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+#engine-note p {
+    margin: 0;
+}
+
 
 
 

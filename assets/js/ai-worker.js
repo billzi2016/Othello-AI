@@ -5,7 +5,7 @@
  * 1. 加载 wasm-pack 生成的 Rust/Wasm 模块。
  * 2. 接收主线程分配的根节点候选步，调用 Rust 搜索并返回最佳结果。
  *
- * 这种拆分能让 UI 线程保持流畅，也方便 ai-manager 用一半 CPU 并行跑多个 Worker。
+ * 这种拆分能让 UI 线程保持流畅，也方便 ai-manager 用约 90% CPU 并行跑多个 Worker。
  */
 
 let wasmReady = null;

@@ -2,7 +2,7 @@
  * 意图：管理黑白棋 AI 的 Web Worker 池。
  *
  * 主线程不能直接执行 5 秒搜索，否则浏览器界面会卡死。
- * 这个管理器固定创建约一半 CPU 数量的 Worker，把根节点合法步拆分给它们并行搜索，
+ * 这个管理器固定创建约 90% CPU 数量的 Worker，把根节点合法步拆分给它们并行搜索，
  * 最后从所有 Worker 返回结果中选最高分。
  *
  * 注意：真正的搜索在 Rust/Wasm 中，Worker 只是加载 Wasm 并执行分配到的根节点。
@@ -13,7 +13,7 @@ class OthelloAIManager {
         this.workerUrl = options.workerUrl || "./assets/js/ai-worker.js";
         this.thinkTimeMs = options.thinkTimeMs || 5000;
         const cores = navigator.hardwareConcurrency || 4;
-        this.workerCount = Math.max(1, Math.floor(cores / 2));
+        this.workerCount = Math.max(1, Math.ceil(cores * 0.9));
         this.workers = [];
         this.jobs = new Map();
         this.nextJobId = 1;

@@ -361,7 +361,7 @@ class Game{
          * 从 Worker 池获取 AI 落子。
          *
          * think time 固定为 AI_THINK_TIME_MS，Worker 数量由 ai-manager 固定为
-         * navigator.hardwareConcurrency 的一半。这里不做搜索，只处理返回值兜底。
+         * navigator.hardwareConcurrency 的约 90%。这里不做搜索，只处理返回值兜底。
          */
         await this.ensureAI();
         const available = this.board.getAvailable();
