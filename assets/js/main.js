@@ -26,7 +26,7 @@ Object.defineProperty(Array.prototype, "copy", {
 var G;
 
 const ANIMATIONDURATION = 650;
-const AI_THINK_TIME_MS = 5000;
+const AI_THINK_TIME_MS = 4000;
 const EMPTY = 0;
 const WHITE = 1;
 const BLACK = -1;

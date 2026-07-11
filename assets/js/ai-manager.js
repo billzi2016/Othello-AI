@@ -1,7 +1,7 @@
 /*
  * 意图：管理黑白棋 AI 的 Web Worker 池。
  *
- * 主线程不能直接执行 5 秒搜索，否则浏览器界面会卡死。
+ * 主线程不能直接执行 4 秒搜索，否则浏览器界面会卡死。
  * 这个管理器固定创建约 90% CPU 数量的 Worker，把根节点合法步拆分给它们并行搜索，
  * 最后从所有 Worker 返回结果中选最高分。
  *
@@ -11,7 +11,7 @@
 class OthelloAIManager {
     constructor(options = {}) {
         this.workerUrl = options.workerUrl || "./assets/js/ai-worker.js";
-        this.thinkTimeMs = options.thinkTimeMs || 5000;
+        this.thinkTimeMs = options.thinkTimeMs || 4000;
         const cores = navigator.hardwareConcurrency || 4;
         this.workerCount = Math.max(1, Math.ceil(cores * 0.9));
         this.workers = [];
@@ -90,7 +90,7 @@ class OthelloAIManager {
          * 并行搜索入口。
          *
          * JS 先负责把二维棋盘压成 Int8Array，再把合法根节点按轮转方式分片。
-         * Rust 侧会再次验证合法性，并在自己的分片中做 5 秒迭代加深。
+         * Rust 侧会再次验证合法性，并在自己的分片中做 4 秒迭代加深。
          */
         if (!legalMoves.length) return Promise.resolve(null);
 

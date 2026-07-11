@@ -19,7 +19,7 @@ https://billzi2016.github.io/Othello-AI/
 - Alpha-Beta / NegaMax search with iterative deepening.
 - Exact endgame search when the remaining empty squares are low.
 - Stability-aware evaluation to distinguish temporary material from safe discs.
-- Up to 5 seconds of thinking time per move.
+- Up to 4 seconds of thinking time per move.
 - Web Worker pool using about 90% of local CPU threads by default.
 - `coi-serviceworker.js` support for `crossOriginIsolated` on static hosting.
 
@@ -101,9 +101,22 @@ Search strategy:
 - JavaScript splits root legal moves across multiple Workers.
 - Each Worker searches its own root-move shard in Rust/Wasm.
 - Rust uses NegaMax-style Alpha-Beta search.
-- Iterative deepening keeps a usable best move available within the 5-second budget.
+- Iterative deepening keeps a usable best move available within the 4-second budget.
 - The endgame phase searches directly to game over instead of relying on heuristic evaluation.
 - Evaluation combines square weights, corners, mobility, frontier discs, parity, stability, and terminal disc count.
+
+## Engine Techniques
+
+- **Rust/Wasm**: the search core is written in Rust and compiled to WebAssembly, giving the browser a fast local engine without any backend server.
+- **Bitboards**: the board is represented by two `u64` values, so move generation and board updates stay compact and cache-friendly.
+- **NegaMax Minimax**: the engine assumes both sides choose their best moves and uses a symmetric NegaMax form to simplify recursive search.
+- **Alpha-Beta pruning**: branches that cannot affect the final decision are cut early, allowing deeper search within the same time budget.
+- **Iterative deepening**: the engine searches depth 1, then depth 2, and so on, so it always has a valid best move when the 4-second limit expires.
+- **Transposition table**: previously searched positions are cached during a move search, reducing repeated work when the same position is reached through different move orders.
+- **Move ordering, killer moves, and history heuristic**: likely strong moves are searched first, which improves Alpha-Beta pruning efficiency.
+- **Exact endgame search**: when few empty squares remain, the engine searches directly to the end of the game instead of relying on heuristics.
+- **Stability-aware evaluation**: stable discs, corners, mobility, frontier discs, parity, and terminal disc count are evaluated to improve late-game decisions.
+- **Web Worker parallelism**: root moves are split across Workers using about 90% of available CPU threads, keeping the UI responsive while the AI searches.
 
 ## Why coi-serviceworker.js Is Needed
 

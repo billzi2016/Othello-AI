@@ -166,7 +166,8 @@
         </div>
         <div id="engine-note">
             <p>AI 在你的本机浏览器中计算，默认使用约 90% 的 CPU 线程。</p>
-            <p>每步最大思考时间为 5 秒，超时后立即返回当前最优落子。</p>
+            <p>每步最大思考时间为 4 秒，超时后立即返回当前最优落子。</p>
+            <p>引擎使用 Rust/Wasm、bitboard、NegaMax Minimax、Alpha-Beta 剪枝、置换表、迭代加深和 Web Worker 并行搜索。</p>
         </div>
     </div>
 </body>
