@@ -69,7 +69,8 @@ body {
 
 #ai-panel {
     width: min(560px, calc(100vw - 32px));
-    height: calc(var(--board-size) + (var(--board-border) * 4));
+    height: calc(var(--board-size) + (var(--board-border) * 4) + (var(--board-border) * 2));
+    box-sizing: border-box;
     padding: 16px;
     color: #e8eaef;
     background: #20242b;
@@ -92,7 +93,7 @@ body {
 
 #ai-table-wrap {
     margin-top: 14px;
-    max-height: calc(var(--board-size) - 108px);
+    max-height: calc(var(--board-size) + (var(--board-border) * 6) - 132px);
     overflow: auto;
 }
 
@@ -200,7 +201,7 @@ body {
 
 #engine-note {
     width: min(var(--board-size), calc(100vw - 32px));
-    margin-top: 16px;
+    margin-top: 26px;
     padding-bottom: 12px;
     color: #f0f0f0;
     font-size: 14px;
@@ -211,6 +212,11 @@ body {
 
 #engine-note p {
     margin: 0;
+}
+
+#engine-note .engine-tech {
+    white-space: nowrap;
+    font-size: 13px;
 }
 
 #game-summary {
