@@ -1,15 +1,17 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>黑白棋 AI</title>
 
+    <script src="./coi-serviceworker.js"></script>
     <link rel="stylesheet" href="./assets/css/style.css">
 
     <script src="./assets/js/jquery-3.6.0.min.js"></script>
     <script src="./assets/js/jquery.flip.min.js"></script>
+    <script type="module" src="./assets/js/ai-manager.js"></script>
     <script src="./assets/js/main.js"></script>
 </head>
 <body>
@@ -32,23 +34,23 @@
                 <div id="menu" class="board-option-type dfr aic jcc">
                     <div id="menu-content" class="board-option-type-content dfr aic jcc">
                         <div id="startbtn" class="board-option-type-btn dfr aic jcc">
-                            <h1>開始</h1>
+                            <h1>开始</h1>
                         </div>
                         <div id="helpbtn" class="board-option-type-btn dfr aic jcc">
-                            <h1>說明</h1>
+                            <h1>说明</h1>
                         </div>
                     </div>
                 </div>
                 <div id="menu-mode" class="board-option-type dfr aic jcc">
                     <div id="menu-mode-content" class="board-option-type-content dfr aic jcc">
                         <div id="pvpbtn" class="board-option-type-btn dfr aic jcc">
-                            <h1>本機雙人</h1>
+                            <h1>本机双人</h1>
                         </div>
                         <div id="pvebtn" class="board-option-type-btn dfr aic jcc">
-                            <h1>人機對戰</h1>
+                            <h1>人机对战</h1>
                         </div>
-                        <div id="onlinebtn" class="board-option-type-btn dfr aic jcc">
-                            <h1>遠端連線</h1>
+                        <div id="evebtn" class="board-option-type-btn dfr aic jcc">
+                            <h1>机机对战</h1>
                         </div>
                     </div>
                     <div class="returnbtn board-option-type-btn dfr aic jcc">
@@ -63,7 +65,7 @@
                             <h1>玩家先走</h1>
                         </div>
                         <div id="efbtn" class="board-option-type-btn dfr aic jcc">
-                            <h1>電腦先走</h1>
+                            <h1>电脑先走</h1>
                         </div>
                     </div>
                     <div class="returnbtn board-option-type-btn dfr aic jcc">
@@ -71,9 +73,6 @@
                             <path fill-rule="evenodd" d="M14.5 1.5a.5.5 0 0 1 .5.5v4.8a2.5 2.5 0 0 1-2.5 2.5H2.707l3.347 3.346a.5.5 0 0 1-.708.708l-4.2-4.2a.5.5 0 0 1 0-.708l4-4a.5.5 0 1 1 .708.708L2.707 8.3H12.5A1.5 1.5 0 0 0 14 6.8V2a.5.5 0 0 1 .5-.5z"/>
                         </svg>
                     </div>
-                </div>
-                <div id="menu-mode-online" class="board-option-type dfr aic jcc">
-
                 </div>
             </div>
             <div id="board-container">

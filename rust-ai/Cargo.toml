@@ -1,0 +1,17 @@
+# 意图：Rust/Wasm AI 子工程配置。
+#
+# 主站仍然是静态 HTML/JS；这个子工程只负责编译出
+# assets/wasm/othello_ai.js 和 assets/wasm/othello_ai_bg.wasm，
+# 供 Web Worker 在浏览器中加载。
+
+[package]
+name = "othello_ai"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+js-sys = "0.3"
+wasm-bindgen = "0.2"

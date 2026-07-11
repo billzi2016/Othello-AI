@@ -1,0 +1,87 @@
+# 意图：自动构建 Rust/Wasm AI 并部署 GitHub Pages。
+#
+# 工作流做三件事：
+# 1. 安装 Rust 和 wasm-bindgen-cli。
+# 2. 把 rust-ai 编译成 wasm32，再生成 assets/wasm/othello_ai.js 与 .wasm。
+# 3. 整理静态站点目录并发布到 GitHub Pages。
+
+name: Build and Deploy Pages
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry and target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust-ai/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('rust-ai/Cargo.lock', 'rust-ai/Cargo.toml') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-
+
+      - name: Install wasm32 target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Install wasm-bindgen-cli
+        run: cargo install wasm-bindgen-cli --locked
+
+      - name: Compile Rust AI to wasm32
+        working-directory: rust-ai
+        run: cargo build --target wasm32-unknown-unknown --release
+
+      - name: Generate browser Wasm bindings
+        working-directory: rust-ai
+        run: |
+          mkdir -p ../assets/wasm
+          wasm-bindgen --target web --out-dir ../assets/wasm --out-name othello_ai target/wasm32-unknown-unknown/release/othello_ai.wasm
+
+      - name: Prepare static site artifact
+        run: |
+          mkdir -p _site
+          cp -R index.html coi-serviceworker.js README.md server.py assets _site/
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
