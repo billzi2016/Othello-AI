@@ -37,6 +37,7 @@ plugins:
                 - Deployment: en/deployment.md
                 - Maintenance: en/maintenance.md
             - Algorithm: en/algorithm-deep-dive.md
+            - Engineering algorithm: en/engineering-algorithm.md
             - JavaScript layer: en/javascript.md
             - Rust engine: en/rust-ai.md
             - Wasm bindings: en/wasm.md
@@ -65,6 +66,7 @@ nav:
       - 部署: zh/deployment.zh.md
       - 维护: zh/maintenance.zh.md
   - 算法: zh/algorithm-deep-dive.zh.md
+  - 实际工程算法: zh/engineering-algorithm.zh.md
   - JavaScript 层: zh/javascript.zh.md
   - Rust 引擎: zh/rust-ai.zh.md
   - Wasm 绑定: zh/wasm.zh.md
