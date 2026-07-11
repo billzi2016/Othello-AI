@@ -5,8 +5,11 @@
 //! 一个表示黑棋占位，一个表示白棋占位。搜索时用位运算维护局面，
 //! 并通过 Alpha-Beta 剪枝、走法排序和迭代加深，在前端给定的时间预算内尽量搜索更深。
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use wasm_bindgen::prelude::*;
+
+#[cfg(test)]
+mod tests;
 
 const BLACK: i8 = -1;
 const WHITE: i8 = 1;
@@ -18,28 +21,15 @@ const TT_EXACT: u8 = 0;
 const TT_LOWER: u8 = 1;
 const TT_UPPER: u8 = 2;
 
-const DIRECTIONS: [(i8, i8); 8] = [
-    (-1, -1),
-    (-1, 0),
-    (-1, 1),
-    (0, 1),
-    (1, 1),
-    (1, 0),
-    (1, -1),
-    (0, -1),
-];
+const NOT_A_FILE: u64 = 0xfefefefefefefefe;
+const NOT_H_FILE: u64 = 0x7f7f7f7f7f7f7f7f;
 
 // 黑白棋里角极其重要，角旁边的 X/C 位在角未占时通常很危险。
 // 这个静态权重不是唯一评估来源，但能让搜索在浅层时也有基本棋感。
 const SQUARE_WEIGHTS: [i32; 64] = [
-    120, -40, 20, 5, 5, 20, -40, 120,
-    -40, -80, -5, -5, -5, -5, -80, -40,
-    20, -5, 15, 3, 3, 15, -5, 20,
-    5, -5, 3, 3, 3, 3, -5, 5,
-    5, -5, 3, 3, 3, 3, -5, 5,
-    20, -5, 15, 3, 3, 15, -5, 20,
-    -40, -80, -5, -5, -5, -5, -80, -40,
-    120, -40, 20, 5, 5, 20, -40, 120,
+    120, -40, 20, 5, 5, 20, -40, 120, -40, -80, -5, -5, -5, -5, -80, -40, 20, -5, 15, 3, 3, 15, -5,
+    20, 5, -5, 3, 3, 3, 3, -5, 5, 5, -5, 3, 3, 3, 3, -5, 5, 20, -5, 15, 3, 3, 15, -5, 20, -40, -80,
+    -5, -5, -5, -5, -80, -40, 120, -40, 20, 5, 5, 20, -40, 120,
 ];
 
 /// 一个完整局面，使用两个 u64 保存黑棋和白棋。
@@ -50,6 +40,31 @@ const SQUARE_WEIGHTS: [i32; 64] = [
 struct Board {
     black: u64,
     white: u64,
+}
+
+#[derive(Clone, Copy)]
+enum Direction {
+    NorthWest,
+    North,
+    NorthEast,
+    East,
+    SouthEast,
+    South,
+    SouthWest,
+    West,
+}
+
+impl Direction {
+    const ALL: [Direction; 8] = [
+        Direction::NorthWest,
+        Direction::North,
+        Direction::NorthEast,
+        Direction::East,
+        Direction::SouthEast,
+        Direction::South,
+        Direction::SouthWest,
+        Direction::West,
+    ];
 }
 
 /// 单步搜索结果。`score` 永远站在根节点 AI 的视角：
@@ -82,7 +97,7 @@ struct SearchCtx {
     root_black: bool,
     timed_out: bool,
     nodes: u64,
-    tt: HashMap<u128, TTEntry>,
+    tt: FxHashMap<u128, TTEntry>,
     killers: [[u8; 2]; MAX_PLY + 1],
     history: [i32; 64],
 }
@@ -113,12 +128,14 @@ pub fn search_best_move(
     // 给 JS 消息传递和动画留一点余量，避免刚好压线造成体感卡顿。
     let budget = think_time_ms.saturating_sub(30).max(50);
     let started_ms = now_ms();
+    let mut tt = FxHashMap::default();
+    tt.reserve(262_144);
     let mut ctx = SearchCtx {
         deadline_ms: started_ms + budget as f64,
         root_black: is_black_turn,
         timed_out: false,
         nodes: 0,
-        tt: HashMap::with_capacity(262_144),
+        tt,
         killers: [[u8::MAX; 2]; MAX_PLY + 1],
         history: [0; 64],
     };
@@ -134,20 +151,39 @@ pub fn search_best_move(
         let mut depth_best = best;
         let mut alpha = -INF;
         let beta = INF;
-        let ordered = order_moves(board, is_black_turn, &root_moves, None, [u8::MAX; 2], &ctx.history);
+        let ordered = order_moves(
+            board,
+            is_black_turn,
+            &root_moves,
+            None,
+            [u8::MAX; 2],
+            &ctx.history,
+        );
 
         for mv in ordered {
             if ctx.expired() {
                 break;
             }
             let next = apply_move(board, mv, is_black_turn);
-            let score = -negamax(next, depth.saturating_sub(1), -beta, -alpha, !is_black_turn, 1, &mut ctx);
+            let score = -negamax(
+                next,
+                depth.saturating_sub(1),
+                -beta,
+                -alpha,
+                !is_black_turn,
+                1,
+                &mut ctx,
+            );
 
             if ctx.timed_out {
                 break;
             }
             if score > depth_best.score || depth_best.depth < depth {
-                depth_best = MoveScore { index: mv, score, depth };
+                depth_best = MoveScore {
+                    index: mv,
+                    score,
+                    depth,
+                };
             }
             alpha = alpha.max(score);
         }
@@ -235,13 +271,17 @@ fn negamax(
     }
 
     let moves = legal_moves(board, black_turn);
-    let opponent_moves = legal_moves(board, !black_turn);
+    let opponent_has_move = legal_move_mask(board, !black_turn) != 0;
     let exact_endgame = empty_count(board) <= EXACT_ENDGAME_EMPTY;
 
     // 双方都无棋可走才是真正终局；单方无棋可走必须 pass。
-    if moves.is_empty() && opponent_moves.is_empty() {
+    if moves.is_empty() && !opponent_has_move {
         let score = terminal_score(board, ctx.root_black);
-        return if black_turn == ctx.root_black { score } else { -score };
+        return if black_turn == ctx.root_black {
+            score
+        } else {
+            -score
+        };
     }
     if depth == 0 && !exact_endgame {
         return relative_score(board, black_turn, ctx.root_black);
@@ -253,8 +293,19 @@ fn negamax(
 
     let mut best = -INF;
     let mut best_move = moves[0];
-    let killer_pair = if ply <= MAX_PLY { ctx.killers[ply] } else { [u8::MAX; 2] };
-    let ordered = order_moves(board, black_turn, &moves, tt_best, killer_pair, &ctx.history);
+    let killer_pair = if ply <= MAX_PLY {
+        ctx.killers[ply]
+    } else {
+        [u8::MAX; 2]
+    };
+    let ordered = order_moves(
+        board,
+        black_turn,
+        &moves,
+        tt_best,
+        killer_pair,
+        &ctx.history,
+    );
     for mv in ordered {
         let next = apply_move(board, mv, black_turn);
         let next_depth = if exact_endgame { depth } else { depth - 1 };
@@ -280,7 +331,15 @@ fn negamax(
     } else {
         TT_EXACT
     };
-    ctx.tt.insert(tt_key, TTEntry { depth, score: best, flag, best_move });
+    ctx.tt.insert(
+        tt_key,
+        TTEntry {
+            depth,
+            score: best,
+            flag,
+            best_move,
+        },
+    );
     best
 }
 
@@ -303,12 +362,15 @@ fn board_from_cells(cells: &[i8]) -> Board {
 ///
 /// 再验证一次是为了避免 UI 层状态异常时 Rust 搜索崩掉。
 fn decode_allowed_moves(encoded: &[u8], board: Board, black_turn: bool) -> Vec<u8> {
-    let legal = legal_moves(board, black_turn);
+    let legal = legal_move_mask(board, black_turn);
+    let mut seen = 0u64;
     let mut out = Vec::new();
     for pair in encoded.chunks_exact(2) {
         if pair[0] < 8 && pair[1] < 8 {
             let idx = pair[0] * 8 + pair[1];
-            if legal.contains(&idx) && !out.contains(&idx) {
+            let move_bit = bit(idx);
+            if legal & move_bit != 0 && seen & move_bit == 0 {
+                seen |= move_bit;
                 out.push(idx);
             }
         }
@@ -318,17 +380,29 @@ fn decode_allowed_moves(encoded: &[u8], board: Board, black_turn: bool) -> Vec<u
 
 /// 生成当前颜色的所有合法走法。
 fn legal_moves(board: Board, black_turn: bool) -> Vec<u8> {
-    let occupied = board.black | board.white;
-    let mut moves = Vec::new();
-    for idx in 0..64u8 {
-        if occupied & bit(idx) != 0 {
-            continue;
-        }
-        if flips_for_move(board, idx, black_turn) != 0 {
-            moves.push(idx);
-        }
+    let mut move_mask = legal_move_mask(board, black_turn);
+    let mut moves = Vec::with_capacity(move_mask.count_ones() as usize);
+    while move_mask != 0 {
+        let idx = move_mask.trailing_zeros() as u8;
+        moves.push(idx);
+        move_mask &= move_mask - 1;
     }
     moves
+}
+
+fn legal_move_mask(board: Board, black_turn: bool) -> u64 {
+    let own = if black_turn { board.black } else { board.white };
+    let opp = if black_turn { board.white } else { board.black };
+    let empty = !(own | opp);
+    let mut move_mask = 0u64;
+    for dir in Direction::ALL {
+        let mut captured = shift(own, dir) & opp;
+        for _ in 0..5 {
+            captured |= shift(captured, dir) & opp;
+        }
+        move_mask |= shift(captured, dir) & empty;
+    }
+    move_mask
 }
 
 /// 执行一步棋，并返回新局面。
@@ -357,35 +431,31 @@ fn flips_for_move(board: Board, idx: u8, black_turn: bool) -> u64 {
         return 0;
     }
 
-    let row = (idx / 8) as i8;
-    let col = (idx % 8) as i8;
+    let move_bit = bit(idx);
     let mut flips = 0u64;
 
-    for (dr, dc) in DIRECTIONS {
-        let mut r = row + dr;
-        let mut c = col + dc;
-        let mut line = 0u64;
-        let mut seen_opponent = false;
-
-        while in_board(r, c) {
-            let b = bit((r as u8) * 8 + c as u8);
-            if opp & b != 0 {
-                seen_opponent = true;
-                line |= b;
-            } else if own & b != 0 {
-                if seen_opponent {
-                    flips |= line;
-                }
-                break;
-            } else {
-                break;
-            }
-            r += dr;
-            c += dc;
-        }
+    for dir in Direction::ALL {
+        flips |= flips_in_direction(move_bit, own, opp, dir);
     }
 
     flips
+}
+
+fn flips_in_direction(move_bit: u64, own: u64, opp: u64, dir: Direction) -> u64 {
+    let mut line = 0u64;
+    let mut cursor = shift(move_bit, dir) & opp;
+    for _ in 0..6 {
+        if cursor == 0 {
+            return 0;
+        }
+        line |= cursor;
+        let next = shift(cursor, dir);
+        if next & own != 0 {
+            return line;
+        }
+        cursor = next & opp;
+    }
+    0
 }
 
 /// 走法排序是 Alpha-Beta 的关键优化点。
@@ -420,7 +490,13 @@ fn move_order_score(
     let flips = flips_for_move(board, mv, black_turn).count_ones() as i32;
     let corner_bonus = if is_corner(mv) { 10_000 } else { 0 };
     let tt_bonus = if tt_best == Some(mv) { 200_000 } else { 0 };
-    let killer_bonus = if killers[0] == mv { 80_000 } else if killers[1] == mv { 40_000 } else { 0 };
+    let killer_bonus = if killers[0] == mv {
+        80_000
+    } else if killers[1] == mv {
+        40_000
+    } else {
+        0
+    };
     tt_bonus
         + killer_bonus
         + history[mv as usize]
@@ -436,8 +512,9 @@ fn evaluate(board: Board, root_black: bool) -> i32 {
 
     let material = (my.count_ones() as i32 - opp.count_ones() as i32) * 12;
     let positional = positional_score(board, root_black);
-    let mobility = (legal_moves(board, root_black).len() as i32
-        - legal_moves(board, !root_black).len() as i32) * 90;
+    let mobility = (legal_move_mask(board, root_black).count_ones() as i32
+        - legal_move_mask(board, !root_black).count_ones() as i32)
+        * 90;
     let corners = corner_score(board, root_black) * 800;
     let frontier = frontier_score(board, root_black) * 18;
     let parity = parity_score(board, root_black) * 55;
@@ -450,7 +527,11 @@ fn evaluate(board: Board, root_black: bool) -> i32 {
 /// 将绝对评分转换成“当前行动方”的相对评分，配合 NegaMax 使用。
 fn relative_score(board: Board, black_turn: bool, root_black: bool) -> i32 {
     let score = evaluate(board, root_black);
-    if black_turn == root_black { score } else { -score }
+    if black_turn == root_black {
+        score
+    } else {
+        -score
+    }
 }
 
 /// 终局评分必须强烈偏向真实胜负，避免 AI 为了位置分牺牲最终子数。
@@ -463,15 +544,13 @@ fn terminal_score(board: Board, root_black: bool) -> i32 {
 
 /// 位置权重评分。
 fn positional_score(board: Board, root_black: bool) -> i32 {
-    let mut score = 0;
-    for idx in 0..64u8 {
-        let b = bit(idx);
-        if board.black & b != 0 {
-            score += if root_black { SQUARE_WEIGHTS[idx as usize] } else { -SQUARE_WEIGHTS[idx as usize] };
-        } else if board.white & b != 0 {
-            score += if root_black { -SQUARE_WEIGHTS[idx as usize] } else { SQUARE_WEIGHTS[idx as usize] };
-        }
-    }
+    let black_score = weighted_square_score(board.black);
+    let white_score = weighted_square_score(board.white);
+    let score = if root_black {
+        black_score - white_score
+    } else {
+        white_score - black_score
+    };
     score * 10
 }
 
@@ -493,21 +572,14 @@ fn corner_score(board: Board, root_black: bool) -> i32 {
 /// 前沿子越多越容易被翻，通常是不稳定因素。
 fn frontier_score(board: Board, root_black: bool) -> i32 {
     let occupied = board.black | board.white;
-    let mut score = 0;
-    for idx in 0..64u8 {
-        let b = bit(idx);
-        if occupied & b == 0 {
-            continue;
-        }
-        if touches_empty(board, idx) {
-            if board.black & b != 0 {
-                score += if root_black { 1 } else { -1 };
-            } else {
-                score += if root_black { -1 } else { 1 };
-            }
-        }
+    let frontier = occupied & neighbors(!occupied);
+    let black_frontier = (frontier & board.black).count_ones() as i32;
+    let white_frontier = (frontier & board.white).count_ones() as i32;
+    if root_black {
+        black_frontier - white_frontier
+    } else {
+        white_frontier - black_frontier
     }
-    score
 }
 
 /// 奇偶性评估。
@@ -519,11 +591,7 @@ fn parity_score(board: Board, root_black: bool) -> i32 {
     if empty > 18 {
         return 0;
     }
-    let base: i32 = if empty % 2 == 1 {
-        1
-    } else {
-        -1
-    };
+    let base: i32 = if empty % 2 == 1 { 1 } else { -1 };
     base * if root_black { 1 } else { -1 }
 }
 
@@ -609,7 +677,11 @@ fn stable_edge_from_corner(board: Board, start: u8, step: i8, end: u8) -> u64 {
     let mut mask = 0u64;
     loop {
         let b = bit(idx as u8);
-        let same = if is_black { board.black & b != 0 } else { board.white & b != 0 };
+        let same = if is_black {
+            board.black & b != 0
+        } else {
+            board.white & b != 0
+        };
         if !same {
             break;
         }
@@ -667,7 +739,11 @@ fn stable_corner_region_mask(board: Board, edge_stable: u64) -> u64 {
                     if stable & b != 0 {
                         continue;
                     }
-                    let same = if is_black { board.black & b != 0 } else { board.white & b != 0 };
+                    let same = if is_black {
+                        board.black & b != 0
+                    } else {
+                        board.white & b != 0
+                    };
                     if same && supported_by_corner(stable, r, c, row_dir, col_dir) {
                         stable |= b;
                         changed = true;
@@ -687,7 +763,8 @@ fn supported_by_corner(stable: u64, r: i8, c: i8, row_dir: i8, col_dir: i8) -> b
     let prev_c = c - col_dir;
     let row_supported = !in_board(prev_r, c) || stable & bit((prev_r as u8) * 8 + c as u8) != 0;
     let col_supported = !in_board(r, prev_c) || stable & bit((r as u8) * 8 + prev_c as u8) != 0;
-    let diag_supported = !in_board(prev_r, prev_c) || stable & bit((prev_r as u8) * 8 + prev_c as u8) != 0;
+    let diag_supported =
+        !in_board(prev_r, prev_c) || stable & bit((prev_r as u8) * 8 + prev_c as u8) != 0;
     row_supported && col_supported && diag_supported
 }
 
@@ -695,23 +772,18 @@ fn corner_row(corner: u8) -> i8 {
     (corner / 8) as i8
 }
 
-fn corner_col(corner: u8) -> i8 {
-    (corner % 8) as i8
+fn weighted_square_score(mut discs: u64) -> i32 {
+    let mut score = 0;
+    while discs != 0 {
+        let idx = discs.trailing_zeros() as usize;
+        score += SQUARE_WEIGHTS[idx];
+        discs &= discs - 1;
+    }
+    score
 }
 
-/// 判断某颗棋周围是否有空格，用于前沿子评估。
-fn touches_empty(board: Board, idx: u8) -> bool {
-    let occupied = board.black | board.white;
-    let row = (idx / 8) as i8;
-    let col = (idx % 8) as i8;
-    for (dr, dc) in DIRECTIONS {
-        let r = row + dr;
-        let c = col + dc;
-        if in_board(r, c) && occupied & bit((r as u8) * 8 + c as u8) == 0 {
-            return true;
-        }
-    }
-    false
+fn corner_col(corner: u8) -> i8 {
+    (corner % 8) as i8
 }
 
 fn empty_count(board: Board) -> u8 {
@@ -746,6 +818,30 @@ fn is_corner(idx: u8) -> bool {
 
 fn bit(idx: u8) -> u64 {
     1u64 << idx
+}
+
+fn shift(bits: u64, dir: Direction) -> u64 {
+    match dir {
+        Direction::NorthWest => (bits & NOT_A_FILE) >> 9,
+        Direction::North => bits >> 8,
+        Direction::NorthEast => (bits & NOT_H_FILE) >> 7,
+        Direction::East => (bits & NOT_H_FILE) << 1,
+        Direction::SouthEast => (bits & NOT_H_FILE) << 9,
+        Direction::South => bits << 8,
+        Direction::SouthWest => (bits & NOT_A_FILE) << 7,
+        Direction::West => (bits & NOT_A_FILE) >> 1,
+    }
+}
+
+fn neighbors(bits: u64) -> u64 {
+    shift(bits, Direction::NorthWest)
+        | shift(bits, Direction::North)
+        | shift(bits, Direction::NorthEast)
+        | shift(bits, Direction::East)
+        | shift(bits, Direction::SouthEast)
+        | shift(bits, Direction::South)
+        | shift(bits, Direction::SouthWest)
+        | shift(bits, Direction::West)
 }
 
 fn in_board(r: i8, c: i8) -> bool {
