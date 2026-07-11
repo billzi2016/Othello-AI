@@ -353,7 +353,9 @@ class Game{
                 m = `黑棋获胜，领先 ${-r} 子`;
                 break;
         }
-        alert(m);
+        this.clearOnClick();
+        $("#game-summary-text").text(`${m}。你可以保留棋盘复盘，或再来一局。`);
+        $("#game-summary").removeClass("hide");
     }
 
     async getAIMove(){
@@ -473,6 +475,24 @@ window.onload = function(){
     $(".board-option-type").hide();
     $("#board-options > #menu").show();
 
+    function hideGameSummary(){
+        $("#game-summary").addClass("hide");
+        $("#game-summary-text").text("");
+    }
+
+    function startGame(isBlackAI, isWhiteAI){
+        hideGameSummary();
+        $("#board-options").hide();
+        $(".board-option-type").hide();
+        if(G && G.ai){
+            G.ai.terminate();
+        }
+        if(G){
+            G.stopped = true;
+        }
+        G = new Game(isBlackAI, isWhiteAI);
+    }
+
     $("#startbtn").on("click", function(){
         $(".board-option-type").hide();
         $("#board-options > #menu-mode").show();
@@ -483,9 +503,7 @@ window.onload = function(){
     });
 
     $("#pvpbtn").on("click", function(){
-        $("#board-options").hide();
-        $(".board-option-type").hide();
-        G = new Game(false, false);
+        startGame(false, false);
     });
 
     $("#pvebtn").on("click", function(){
@@ -494,26 +512,33 @@ window.onload = function(){
     });
 
     $("#evebtn").on("click", function(){
-        $("#board-options").hide();
-        $(".board-option-type").hide();
-        G = new Game(true, true);
+        startGame(true, true);
     });
 
     $("#pfbtn").on("click", function(){
-        $("#board-options").hide();
-        $(".board-option-type").hide();
-        G = new Game(false, true);
+        startGame(false, true);
     });
 
     $("#efbtn").on("click", function(){
-        $("#board-options").hide();
-        $(".board-option-type").hide();
-        G = new Game(true, false);
+        startGame(true, false);
     });
 
     $(".returnbtn").on("click", function(){
         $("#board-options").show();
         $(".board-option-type").hide();
         $("#board-options > #menu").show();
+    });
+
+    $("#restartbtn").on("click", function(){
+        hideGameSummary();
+        if(G && G.ai){
+            G.ai.terminate();
+        }
+        if(G){
+            G.stopped = true;
+        }
+        $("#board-options").show();
+        $(".board-option-type").hide();
+        $("#board-options > #menu-mode").show();
     });
 };
