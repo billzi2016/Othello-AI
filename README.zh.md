@@ -2,7 +2,7 @@
 
 这是一个可部署到 GitHub Pages 的浏览器端黑白棋项目。页面保留本机双人、人机对战和机机对战三种模式；人机和机机模式使用 Rust/Wasm AI，在 Web Worker 池中并行搜索。
 
-Rust/Wasm Othello AI running entirely in the browser with bitboards, alpha-beta search, and worker-based parallelism.
+Rust/Wasm Othello AI running entirely in the browser with Bitboards, alpha-beta search, and worker-based parallelism.
 The engine includes exact endgame search and stability-aware evaluation for stronger late-game decisions.
 
 在线体验：
@@ -14,7 +14,7 @@ https://billzi2016.github.io/Othello-AI/
 ## 当前目标
 
 - 使用 Rust 实现黑白棋 AI 底层搜索。
-- 使用两个 `u64` bitboard 表示黑白棋局面。
+- 使用两个 `u64` Bitboard 表示黑白棋局面。
 - 使用 Alpha-Beta / NegaMax 剪枝和迭代加深。
 - 后期空格较少时启用终局完全搜索。
 - 使用稳定子评估区分临时子数和长期安全棋子。

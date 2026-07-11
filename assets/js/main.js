@@ -3,7 +3,7 @@
  *
  * 这个文件负责 UI 初始化、菜单切换、棋盘状态、合法落子、翻子动画和游戏流程。
  * 真正耗时的 AI 搜索不在这里执行，而是通过 window.OthelloAIManager
- * 分发到 Web Worker 池，再由 Rust/Wasm 的 bitboard 引擎完成。
+ * 分发到 Web Worker 池，再由 Rust/Wasm 的 Bitboard 引擎完成。
  *
  * 维护边界：
  * - 规则相关的轻量逻辑保留在 JS，方便和 DOM 坐标一一对应。
@@ -272,6 +272,22 @@ class Board{
         return getAvailable(this.m, this.bTurn);
     }
 
+    passIfNeeded(){
+        /*
+         * 标准黑白棋 pass 规则。
+         *
+         * 如果当前行动方没有合法步，但对手有合法步，本回合必须跳过。
+         * 原流程只在落子后切换回合；进入一个“当前方无棋可下”的回合时，
+         * 会出现无人可点、AI 返回 null、最后阶段看起来没下完的问题。
+         */
+        if(this.getAvailable().length !== 0 || isGameOver(this.m)){
+            return false;
+        }
+        this.bTurn = !this.bTurn;
+        this.n++;
+        return true;
+    }
+
     countResult(){
         const r = countTiles(this.m);
         this.blackTiles = r[0];
@@ -430,6 +446,11 @@ class Game{
     async PVPStart(){
         let tmpN = undefined;
         while(!isGameOver(this.board.m) && !this.stopped){
+            if(this.board.passIfNeeded()){
+                recordPassStats(!this.board.bTurn);
+                tmpN = undefined;
+                continue;
+            }
             if(tmpN !== this.board.n){
                 tmpN = this.board.n;
                 this.bindHumanMoves();
@@ -449,6 +470,11 @@ class Game{
          */
         let tmpN = undefined;
         while(!isGameOver(this.board.m) && !this.stopped){
+            if(this.board.passIfNeeded()){
+                recordPassStats(!this.board.bTurn);
+                tmpN = undefined;
+                continue;
+            }
             const aiTurn = (this.isBlackAI && this.board.bTurn) ||
                 (this.isWhiteAI && !this.board.bTurn);
 
@@ -486,8 +512,13 @@ class Game{
          * 机机对战流程：黑白双方都调用同一套 Rust/Wasm AI。
          *
          * 这个模式替代原来未实现的“远端连线”，用于观察 AI 自博弈和调试棋力。
-         */
+        */
         while(!isGameOver(this.board.m) && !this.stopped){
+            if(this.board.passIfNeeded()){
+                recordPassStats(!this.board.bTurn);
+                await sleep(ANIMATIONDURATION);
+                continue;
+            }
             this.clearOnClick();
             this.drawAvailableForAI();
             const result = await this.getAIMove();
@@ -565,6 +596,38 @@ function recordMoveStats({ isBlackTurn, point, source, stats = null }){
             ? `#${moveStatIndex} ${side}棋 AI 落子 ${pos}，深度 ${depth}，评分 ${score}，耗时 ${time}。`
             : `#${moveStatIndex} ${side}棋 人类落子 ${pos}。`
     );
+
+    const wrap = document.getElementById("ai-table-wrap");
+    if(wrap){
+        wrap.scrollTop = wrap.scrollHeight;
+    }
+}
+
+function recordPassStats(isBlackTurn){
+    /*
+     * 记录标准 pass。
+     *
+     * pass 不是落子，但它是黑白棋规则的一部分；写进评分表可以解释
+     * 为什么最后阶段棋盘还有空格却进入了另一方回合或直接结束。
+     */
+    moveStatIndex++;
+    $("#ai-stats-empty").remove();
+
+    const side = isBlackTurn ? "黑" : "白";
+    $("#ai-stats-body").append(`
+        <tr>
+            <td>#${moveStatIndex}</td>
+            <td>${side}</td>
+            <td class="score-neutral">Pass</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+            <td class="score-neutral">无合法步</td>
+        </tr>
+    `);
+    $("#ai-current").text(`#${moveStatIndex} ${side}棋无合法落子，按规则跳过回合。`);
 
     const wrap = document.getElementById("ai-table-wrap");
     if(wrap){

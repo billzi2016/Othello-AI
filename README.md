@@ -1,6 +1,6 @@
 # Othello AI
 
-Rust/Wasm Othello AI running entirely in the browser with bitboards, alpha-beta search, and worker-based parallelism.
+Rust/Wasm Othello AI running entirely in the browser with Bitboards, alpha-beta search, and worker-based parallelism.
 The engine includes exact endgame search and stability-aware evaluation for stronger late-game decisions.
 
 [中文说明](README.zh.md)
@@ -15,7 +15,7 @@ https://billzi2016.github.io/Othello-AI/
 
 - Browser-only Othello game deployable to GitHub Pages.
 - Local two-player mode, human-vs-AI mode, and AI-vs-AI mode.
-- Rust/Wasm search engine using two `u64` bitboards.
+- Rust/Wasm search engine using two `u64` Bitboards.
 - Alpha-Beta / NegaMax search with iterative deepening.
 - Exact endgame search when the remaining empty squares are low.
 - Stability-aware evaluation to distinguish temporary material from safe discs.
@@ -87,7 +87,7 @@ assets/wasm/othello_ai_bg.wasm
 
 ## AI Design
 
-The engine stores the board as two `u64` bitboards:
+The engine stores the board as two `u64` Bitboards:
 
 - `black`: occupied squares for black discs.
 - `white`: occupied squares for white discs.
