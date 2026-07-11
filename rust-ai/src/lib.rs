@@ -13,6 +13,7 @@ const WHITE: i8 = 1;
 const INF: i32 = 1_000_000_000;
 const MAX_DEPTH: u8 = 64;
 const MAX_PLY: usize = 64;
+const EXACT_ENDGAME_EMPTY: u8 = 14;
 const TT_EXACT: u8 = 0;
 const TT_LOWER: u8 = 1;
 const TT_UPPER: u8 = 2;
@@ -214,17 +215,19 @@ fn negamax(
 
     let moves = legal_moves(board, black_turn);
     let opponent_moves = legal_moves(board, !black_turn);
+    let exact_endgame = empty_count(board) <= EXACT_ENDGAME_EMPTY;
 
     // 双方都无棋可走才是真正终局；单方无棋可走必须 pass。
     if moves.is_empty() && opponent_moves.is_empty() {
         let score = terminal_score(board, ctx.root_black);
         return if black_turn == ctx.root_black { score } else { -score };
     }
-    if depth == 0 {
+    if depth == 0 && !exact_endgame {
         return relative_score(board, black_turn, ctx.root_black);
     }
     if moves.is_empty() {
-        return -negamax(board, depth - 1, -beta, -alpha, !black_turn, ply + 1, ctx);
+        let next_depth = if exact_endgame { depth } else { depth - 1 };
+        return -negamax(board, next_depth, -beta, -alpha, !black_turn, ply + 1, ctx);
     }
 
     let mut best = -INF;
@@ -233,7 +236,8 @@ fn negamax(
     let ordered = order_moves(board, black_turn, &moves, ctx.root_black, tt_best, killer_pair, &ctx.history);
     for mv in ordered {
         let next = apply_move(board, mv, black_turn);
-        let score = -negamax(next, depth - 1, -beta, -alpha, !black_turn, ply + 1, ctx);
+        let next_depth = if exact_endgame { depth } else { depth - 1 };
+        let score = -negamax(next, next_depth, -beta, -alpha, !black_turn, ply + 1, ctx);
         if ctx.timed_out {
             return best.max(evaluate(board, ctx.root_black));
         }
@@ -423,9 +427,9 @@ fn evaluate(board: Board, root_black: bool) -> i32 {
     let frontier = frontier_score(board, root_black) * 18;
     let parity = parity_score(board, root_black) * 55;
     let danger = corner_danger_score(board, root_black) * 220;
-    let stable_edges = stable_edge_score(board, root_black) * 140;
+    let stable = stable_disc_score(board, root_black) * 140;
 
-    positional + mobility + corners - frontier + material + parity - danger + stable_edges
+    positional + mobility + corners - frontier + material + parity - danger + stable
 }
 
 /// 将绝对评分转换成“当前行动方”的相对评分，配合 NegaMax 使用。
@@ -536,27 +540,43 @@ fn corner_danger_score(board: Board, root_black: bool) -> i32 {
     score
 }
 
-/// 边稳定子近似。
+/// 稳定子评估。
 ///
-/// 完整稳定子计算很复杂；这里先做最稳的部分：从已占角沿边连续延伸的同色棋。
-/// 这些棋通常不会再被翻，能显著增强 AI 对角和边的长期价值判断。
-fn stable_edge_score(board: Board, root_black: bool) -> i32 {
+/// 这里包含两层：
+/// 1. 从已占角沿边连续延伸的稳定边子。
+/// 2. 从四个角向内扩张，估计被稳定边界包住的同色稳定区域。
+///
+/// 它不是完整数学证明级稳定子算法，但比单纯边稳定子更细，
+/// 能让 AI 更准确地区分“暂时多子”和“真的不会再被翻的子”。
+fn stable_disc_score(board: Board, root_black: bool) -> i32 {
+    let stable = stable_edge_mask(board) | stable_corner_region_mask(board);
+    let black_stable = (stable & board.black).count_ones() as i32;
+    let white_stable = (stable & board.white).count_ones() as i32;
+    if root_black {
+        black_stable - white_stable
+    } else {
+        white_stable - black_stable
+    }
+}
+
+/// 从角沿边统计确定稳定的棋子，返回 bit mask。
+fn stable_edge_mask(board: Board) -> u64 {
     let edges = [
         (0u8, 1i8, 7u8),
         (7u8, 8i8, 63u8),
         (56u8, 1i8, 63u8),
         (0u8, 8i8, 56u8),
     ];
-    let mut score = 0;
+    let mut mask = 0u64;
     for (start, step, end) in edges {
-        score += stable_from_corner(board, root_black, start, step, end);
-        score += stable_from_corner(board, root_black, end, -step, start);
+        mask |= stable_edge_from_corner(board, start, step, end);
+        mask |= stable_edge_from_corner(board, end, -step, start);
     }
-    score
+    mask
 }
 
 /// 从一个角开始沿边统计连续同色稳定子。
-fn stable_from_corner(board: Board, root_black: bool, start: u8, step: i8, end: u8) -> i32 {
+fn stable_edge_from_corner(board: Board, start: u8, step: i8, end: u8) -> u64 {
     let start_bit = bit(start);
     let color = if board.black & start_bit != 0 {
         Some(true)
@@ -570,14 +590,14 @@ fn stable_from_corner(board: Board, root_black: bool, start: u8, step: i8, end: 
     };
 
     let mut idx = start as i16;
-    let mut score = 0;
+    let mut mask = 0u64;
     loop {
         let b = bit(idx as u8);
         let same = if is_black { board.black & b != 0 } else { board.white & b != 0 };
         if !same {
             break;
         }
-        score += if is_black == root_black { 1 } else { -1 };
+        mask |= b;
         if idx as u8 == end {
             break;
         }
@@ -586,7 +606,81 @@ fn stable_from_corner(board: Board, root_black: bool, start: u8, step: i8, end: 
             break;
         }
     }
-    score
+    mask
+}
+
+/// 从四个角向内扩张稳定区域。
+///
+/// 对每个已占角，只沿该角对应的行列方向扩张；某个格子如果和角同色，
+/// 且其上方/左方等已被同色稳定子支撑，就把它纳入稳定集合。
+/// 这个算法保守，不会为了追求数量而把明显不稳定的中腹棋误算进去。
+fn stable_corner_region_mask(board: Board) -> u64 {
+    let mut stable = stable_edge_mask(board);
+    let corners = [
+        (0u8, 1i8, 1i8),
+        (7u8, 1i8, -1i8),
+        (56u8, -1i8, 1i8),
+        (63u8, -1i8, -1i8),
+    ];
+
+    let mut changed = true;
+    while changed {
+        changed = false;
+        for (corner, row_dir, col_dir) in corners {
+            let corner_bit = bit(corner);
+            let color = if board.black & corner_bit != 0 {
+                Some(true)
+            } else if board.white & corner_bit != 0 {
+                Some(false)
+            } else {
+                None
+            };
+            let Some(is_black) = color else {
+                continue;
+            };
+
+            for distance_r in 0..8 {
+                for distance_c in 0..8 {
+                    let r = corner_row(corner) + row_dir * distance_r;
+                    let c = corner_col(corner) + col_dir * distance_c;
+                    if !in_board(r, c) {
+                        continue;
+                    }
+                    let idx = (r as u8) * 8 + c as u8;
+                    let b = bit(idx);
+                    if stable & b != 0 {
+                        continue;
+                    }
+                    let same = if is_black { board.black & b != 0 } else { board.white & b != 0 };
+                    if same && supported_by_corner(stable, r, c, row_dir, col_dir) {
+                        stable |= b;
+                        changed = true;
+                    }
+                }
+            }
+        }
+    }
+    stable
+}
+
+/// 判断某格是否被角方向上的稳定棋支撑。
+///
+/// 边上的格子只需要一个方向支撑；内侧格子需要行、列、斜向至少形成保守支撑。
+fn supported_by_corner(stable: u64, r: i8, c: i8, row_dir: i8, col_dir: i8) -> bool {
+    let prev_r = r - row_dir;
+    let prev_c = c - col_dir;
+    let row_supported = !in_board(prev_r, c) || stable & bit((prev_r as u8) * 8 + c as u8) != 0;
+    let col_supported = !in_board(r, prev_c) || stable & bit((r as u8) * 8 + prev_c as u8) != 0;
+    let diag_supported = !in_board(prev_r, prev_c) || stable & bit((prev_r as u8) * 8 + prev_c as u8) != 0;
+    row_supported && col_supported && diag_supported
+}
+
+fn corner_row(corner: u8) -> i8 {
+    (corner / 8) as i8
+}
+
+fn corner_col(corner: u8) -> i8 {
+    (corner % 8) as i8
 }
 
 /// 判断某颗棋周围是否有空格，用于前沿子评估。
