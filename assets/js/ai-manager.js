@@ -106,7 +106,6 @@ class OthelloAIManager {
             }
         }
 
-        const startedAt = performance.now();
         const calls = chunks.map((moves, index) => {
             const encodedMoves = new Uint8Array(moves.length * 2);
             for (let i = 0; i < moves.length; i++) {
@@ -118,8 +117,7 @@ class OthelloAIManager {
                 cells,
                 isBlackTurn,
                 legalMoves: encodedMoves,
-                thinkTimeMs: this.thinkTimeMs,
-                startedAt
+                thinkTimeMs: this.thinkTimeMs
             });
         });
 

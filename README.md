@@ -121,9 +121,9 @@ Search strategy:
 - **Web Worker parallelism**: root moves are split across Workers using about 90% of available CPU threads, keeping the UI responsive while the AI searches.
 - **Search telemetry**: every AI move reports depth, Minimax score, visited nodes, nodes per second, and elapsed time to the side panel.
 
-## Why coi-serviceworker.js Is Needed
+## Why coi-serviceworker.js Is Kept
 
-SharedArrayBuffer and Wasm threading require the page to be `crossOriginIsolated`. A normal server can set:
+The current AI parallelism model is root-move sharding across multiple Web Workers, with each Worker loading its own Wasm module. It does not require Wasm pthreads or SharedArrayBuffer. `coi-serviceworker.js` is kept so static hosting such as GitHub Pages can provide cross-origin isolation headers, which also leaves room for future features that may require `crossOriginIsolated`. A normal server can set:
 
 ```text
 Cross-Origin-Opener-Policy: same-origin
@@ -150,5 +150,19 @@ On push to `main` or `master`, the workflow:
 6. Deploys to GitHub Pages.
 
 The workflow can also be triggered manually from the GitHub Actions page.
+
+### Local Build and Manual Deployment
+
+If you do not use GitHub Actions, build the Rust/Wasm output locally with the commands above, then publish the static files to your GitHub Pages branch or configured Pages directory. Make sure these files are present:
+
+```text
+index.html
+coi-serviceworker.js
+assets/js/main.js
+assets/js/ai-manager.js
+assets/js/ai-worker.js
+assets/wasm/othello_ai.js
+assets/wasm/othello_ai_bg.wasm
+```
 
 GitHub Pages only serves static files. All AI computation runs locally in the visitor's browser and CPU.

@@ -19,9 +19,13 @@ function sleep(d){
     return new Promise(r => setTimeout(r, d));
 }
 
-Object.defineProperty(Array.prototype, "copy", {
-    value: function(){ return JSON.parse(JSON.stringify(this)); }
-});
+function copyBoard(board){
+    return board.map(row => row.slice());
+}
+
+function cellSelector(r, c){
+    return `#r${r} > .bc[data-col="${c}"]`;
+}
 
 var G;
 
@@ -86,7 +90,7 @@ function resetBoard(){
         }
     }
 
-    const m = defaultMAP.copy();
+    const m = copyBoard(defaultMAP);
     $(`div#r3c4`).flip(true).show();
     $(`div#r4c3`).flip(true).show();
     $(`div#r3c3`).flip(false).show();
@@ -199,7 +203,7 @@ function takeStep(current, p, bTurn){
      */
     const self = bTurn ? BLACK : WHITE;
     const f = bTurn ? BLACKFLIP : WHITEFLIP;
-    const m = current.copy();
+    const m = copyBoard(current);
     const flipping = collectFlips(current, p, bTurn);
     const speed = ANIMATIONDURATION / Math.max(1, flipping.length + 1);
 
@@ -264,7 +268,7 @@ class Board{
     drawAvailable(){
         const am = this.getAvailable();
         for(let i = 0; i < am.length; i++){
-            $(`#r${am[i][0]} > #c${am[i][1]} > .tile-highlight`).css("display", "unset");
+            $(`${cellSelector(am[i][0], am[i][1])} > .tile-highlight`).css("display", "unset");
         }
     }
 
@@ -312,7 +316,12 @@ class Game{
 
         sleep(ANIMATIONDURATION / 2).then(async () => {
             try{
+                if(this.stopped) return;
                 await this.ensureAI();
+                if(this.stopped){
+                    if(this.ai) this.ai.terminate();
+                    return;
+                }
                 if(this.isBlackAI && this.isWhiteAI){
                     await this.EVEStart();
                 }
@@ -324,6 +333,7 @@ class Game{
                 }
             }
             catch(err){
+                if(this.stopped) return;
                 console.error(err);
                 alert(`AI 初始化失败：${err.message || err}`);
             }
@@ -351,7 +361,7 @@ class Game{
     clearOnClick(){
         for(let i = 0; i < 8; i++){
             for(let j = 0; j < 8; j++){
-                $(`#r${i} > #c${j}`).prop("onclick", null).off("click");
+                $(cellSelector(i, j)).prop("onclick", null).off("click");
             }
         }
         $(`.tile-highlight`).removeClass("ai-thinking").css("display", "none");
@@ -384,6 +394,7 @@ class Game{
          * navigator.hardwareConcurrency 的约 90%。这里不做搜索，只处理返回值兜底。
          */
         await this.ensureAI();
+        if(this.stopped) return null;
         const available = this.board.getAvailable();
         if(available.length === 0) return null;
         const result = await this.ai.findBestMove({
@@ -391,6 +402,7 @@ class Game{
             isBlackTurn: this.board.bTurn,
             legalMoves: available
         });
+        if(this.stopped) return null;
         if(!result || result.r < 0 || result.c < 0){
             return {
                 point: new Point(available[0][0], available[0][1]),
@@ -411,7 +423,7 @@ class Game{
          */
         const am = this.board.getAvailable();
         for(let i = 0; i < am.length; i++){
-            $(`#r${am[i][0]} > #c${am[i][1]} > .tile-highlight`)
+            $(`${cellSelector(am[i][0], am[i][1])} > .tile-highlight`)
                 .addClass("ai-thinking")
                 .css("display", "unset");
         }
@@ -428,7 +440,7 @@ class Game{
         const game = this;
         const am = this.board.getAvailable();
         for(let i = 0; i < am.length; i++){
-            $(`#r${am[i][0]} > #c${am[i][1]}`).on("click", function(){
+            $(cellSelector(am[i][0], am[i][1])).on("click", function(){
                 const point = new Point(am[i][0], am[i][1]);
                 const isBlackTurn = game.board.bTurn;
                 game.board.takeStep(point);
@@ -439,7 +451,7 @@ class Game{
                 });
                 game.clearOnClick();
             });
-            $(`#r${am[i][0]} > #c${am[i][1]} > .tile-highlight`).css("display", "unset");
+            $(`${cellSelector(am[i][0], am[i][1])} > .tile-highlight`).css("display", "unset");
         }
     }
 
@@ -459,6 +471,7 @@ class Game{
                 await sleep(120);
             }
         }
+        if(this.stopped) return;
         this.GameOver(this.board.countResult());
     }
 
@@ -482,7 +495,9 @@ class Game{
                 this.clearOnClick();
                 this.drawAvailableForAI();
                 await sleep(120);
+                if(this.stopped) break;
                 const result = await this.getAIMove();
+                if(this.stopped) break;
                 const move = result ? result.point : null;
                 if(move){
                     const isBlackTurn = this.board.bTurn;
@@ -504,6 +519,7 @@ class Game{
                 await sleep(120);
             }
         }
+        if(this.stopped) return;
         this.GameOver(this.board.countResult());
     }
 
@@ -522,6 +538,7 @@ class Game{
             this.clearOnClick();
             this.drawAvailableForAI();
             const result = await this.getAIMove();
+            if(this.stopped) break;
             const move = result ? result.point : null;
             if(move){
                 const isBlackTurn = this.board.bTurn;
@@ -535,6 +552,7 @@ class Game{
             }
             await sleep(ANIMATIONDURATION);
         }
+        if(this.stopped) return;
         this.GameOver(this.board.countResult());
     }
 }
@@ -661,7 +679,7 @@ function scoreClassName(value){
 window.onload = function(){
     for(let i = 0; i < 8; i++){
         for(let j = 0; j < 8; j++){
-            $(`#r${i} > #c${j}`).append(`
+            $(cellSelector(i, j)).append(`
                 <div class="tile-highlight" style></div>
                 <div id="r${i}c${j}" class="tile">
                     <div class="tile-front front"></div>

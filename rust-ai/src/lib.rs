@@ -134,7 +134,7 @@ pub fn search_best_move(
         let mut depth_best = best;
         let mut alpha = -INF;
         let beta = INF;
-        let ordered = order_moves(board, is_black_turn, &root_moves, is_black_turn, None, [u8::MAX; 2], &ctx.history);
+        let ordered = order_moves(board, is_black_turn, &root_moves, None, [u8::MAX; 2], &ctx.history);
 
         for mv in ordered {
             if ctx.expired() {
@@ -209,7 +209,7 @@ fn negamax(
 ) -> i32 {
     ctx.nodes = ctx.nodes.saturating_add(1);
     if ctx.expired() {
-        return evaluate(board, ctx.root_black);
+        return relative_score(board, black_turn, ctx.root_black);
     }
 
     let alpha_original = alpha;
@@ -254,13 +254,13 @@ fn negamax(
     let mut best = -INF;
     let mut best_move = moves[0];
     let killer_pair = if ply <= MAX_PLY { ctx.killers[ply] } else { [u8::MAX; 2] };
-    let ordered = order_moves(board, black_turn, &moves, ctx.root_black, tt_best, killer_pair, &ctx.history);
+    let ordered = order_moves(board, black_turn, &moves, tt_best, killer_pair, &ctx.history);
     for mv in ordered {
         let next = apply_move(board, mv, black_turn);
         let next_depth = if exact_endgame { depth } else { depth - 1 };
         let score = -negamax(next, next_depth, -beta, -alpha, !black_turn, ply + 1, ctx);
         if ctx.timed_out {
-            return best.max(evaluate(board, ctx.root_black));
+            return best.max(relative_score(board, black_turn, ctx.root_black));
         }
         if score > best {
             best = score;
@@ -390,20 +390,19 @@ fn flips_for_move(board: Board, idx: u8, black_turn: bool) -> u64 {
 
 /// 走法排序是 Alpha-Beta 的关键优化点。
 ///
-/// 好走法越早搜索，越容易触发剪枝；这里优先角、翻子收益、位置权重和后续机动性。
+/// 好走法越早搜索，越容易触发剪枝；这里优先 TT、killer、历史表、角、翻子收益和位置权重。
 fn order_moves(
     board: Board,
     black_turn: bool,
     moves: &[u8],
-    root_black: bool,
     tt_best: Option<u8>,
     killers: [u8; 2],
     history: &[i32; 64],
 ) -> Vec<u8> {
     let mut ordered = moves.to_vec();
     ordered.sort_by(|&a, &b| {
-        let sa = move_order_score(board, black_turn, a, root_black, tt_best, killers, history);
-        let sb = move_order_score(board, black_turn, b, root_black, tt_best, killers, history);
+        let sa = move_order_score(board, black_turn, a, tt_best, killers, history);
+        let sb = move_order_score(board, black_turn, b, tt_best, killers, history);
         sb.cmp(&sa)
     });
     ordered
@@ -414,16 +413,12 @@ fn move_order_score(
     board: Board,
     black_turn: bool,
     mv: u8,
-    root_black: bool,
     tt_best: Option<u8>,
     killers: [u8; 2],
     history: &[i32; 64],
 ) -> i32 {
-    let next = apply_move(board, mv, black_turn);
     let flips = flips_for_move(board, mv, black_turn).count_ones() as i32;
     let corner_bonus = if is_corner(mv) { 10_000 } else { 0 };
-    let mobility = legal_moves(next, !black_turn).len() as i32;
-    let perspective = if black_turn == root_black { 1 } else { -1 };
     let tt_bonus = if tt_best == Some(mv) { 200_000 } else { 0 };
     let killer_bonus = if killers[0] == mv { 80_000 } else if killers[1] == mv { 40_000 } else { 0 };
     tt_bonus
@@ -432,7 +427,6 @@ fn move_order_score(
         + corner_bonus
         + SQUARE_WEIGHTS[mv as usize] * 20
         + flips * 35
-        - perspective * mobility * 6
 }
 
 /// 当前局面的绝对评分，站在 `root_black` 视角。
@@ -570,7 +564,8 @@ fn corner_danger_score(board: Board, root_black: bool) -> i32 {
 /// 它不是完整数学证明级稳定子算法，但比单纯边稳定子更细，
 /// 能让 AI 更准确地区分“暂时多子”和“真的不会再被翻的子”。
 fn stable_disc_score(board: Board, root_black: bool) -> i32 {
-    let stable = stable_edge_mask(board) | stable_corner_region_mask(board);
+    let edge_stable = stable_edge_mask(board);
+    let stable = edge_stable | stable_corner_region_mask(board, edge_stable);
     let black_stable = (stable & board.black).count_ones() as i32;
     let white_stable = (stable & board.white).count_ones() as i32;
     if root_black {
@@ -635,8 +630,8 @@ fn stable_edge_from_corner(board: Board, start: u8, step: i8, end: u8) -> u64 {
 /// 对每个已占角，只沿该角对应的行列方向扩张；某个格子如果和角同色，
 /// 且其上方/左方等已被同色稳定子支撑，就把它纳入稳定集合。
 /// 这个算法保守，不会为了追求数量而把明显不稳定的中腹棋误算进去。
-fn stable_corner_region_mask(board: Board) -> u64 {
-    let mut stable = stable_edge_mask(board);
+fn stable_corner_region_mask(board: Board, edge_stable: u64) -> u64 {
+    let mut stable = edge_stable;
     let corners = [
         (0u8, 1i8, 1i8),
         (7u8, 1i8, -1i8),

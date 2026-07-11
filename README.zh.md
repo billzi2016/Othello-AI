@@ -121,9 +121,9 @@ index = row * 8 + col
 - **Web Worker 并行**：把根节点候选步拆给多个 Worker，默认使用约 90% CPU 线程，同时保持页面响应。
 - **搜索统计面板**：每步 AI 都会展示搜索深度、Minimax 分数、遍历节点数、每秒节点数和耗时。
 
-## 为什么需要 coi-serviceworker.js
+## 为什么保留 coi-serviceworker.js
 
-浏览器中使用 SharedArrayBuffer / Wasm 多线程能力需要页面处于 `crossOriginIsolated` 状态。正常服务器可以通过响应头配置：
+当前 AI 并行方式是“多个 Web Worker 分片搜索 + 每个 Worker 独立加载 Wasm”，不依赖 Wasm pthread 或 SharedArrayBuffer。`coi-serviceworker.js` 主要用于让 GitHub Pages 这类静态托管环境具备跨源隔离响应头，方便以后接入需要 `crossOriginIsolated` 的能力。正常服务器可以通过响应头配置：
 
 ```text
 Cross-Origin-Opener-Policy: same-origin
@@ -151,7 +151,9 @@ push 到 `main` 或 `master` 后，Actions 会自动：
 
 也可以在 GitHub Actions 页面手动触发 `Build and Deploy Pages`。
 
-把构建后的静态文件提交到 GitHub Pages 发布分支即可。需要确保以下文件存在：
+### 本地构建后手动部署
+
+如果不使用 GitHub Actions，也可以先在本地按“构建 Rust/Wasm”步骤生成最新 `assets/wasm/` 文件，再把静态文件发布到 GitHub Pages 分支或 Pages 配置指向的目录。需要确保以下文件存在：
 
 ```text
 index.html
