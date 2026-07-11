@@ -22,6 +22,27 @@ docs-site/                  MkDocs 文档站源码
 
 每个 Worker 调用 Rust 导出的 `search_best_move()`。Rust 返回一段 CSV 字符串，Worker 解析成对象后交回主线程。主线程从所有 Worker 的结果里选择分数最高的落子，并把统计信息写入右侧表格。
 
+更细地看，一次 AI 落子会经过这些文件：
+
+1. `main.js` 保存当前 8x8 棋盘，并算出当前颜色的合法步。
+2. `ai-manager.js` 把棋盘压成 64 格数组，把合法步分片。
+3. `ai-worker.js` 在后台线程中接收分片，确保 Wasm 已初始化。
+4. `assets/wasm/othello_ai.js` 加载 `.wasm`，暴露 Rust 函数。
+5. `rust-ai/src/lib.rs` 搜索分片里的最佳走法。
+6. `ai-worker.js` 把 CSV 结果转成 JS 对象。
+7. `ai-manager.js` 合并所有 Worker 结果，选择最高分。
+8. `main.js` 落子、翻子、更新搜索评分表。
+
+这条链路里，每一层的输入输出都比较小。页面层传棋盘和合法步，Worker 层传分片，Rust 层返回分数和统计数据。这样出错时可以按层排查，而不是把所有问题都归到“AI 不动”。
+
+## 哪些文件可以手改
+
+`assets/js/main.js`、`assets/js/ai-manager.js`、`assets/js/ai-worker.js` 和 `rust-ai/src/lib.rs` 是源码，可以按需求修改。
+
+`assets/wasm/othello_ai.js` 和 `assets/wasm/othello_ai_bg.wasm` 是构建产物。修改 Rust 后不要直接手改这两个文件，应重新运行 Wasm 构建命令生成它们。
+
+`docs-site/site/` 是 MkDocs 本地构建产物，已经被 `.gitignore` 忽略。文档源码在 `docs-site/docs/`，站点配置在 `docs-site/mkdocs.yml`。
+
 ## 判断结构是否完整
 
 一次完整构建后，至少应存在这些文件：

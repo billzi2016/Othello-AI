@@ -43,6 +43,51 @@ Example:
 
 That means the AI chose `(2, 3)`, scored it as `18`, completed depth 8, visited 125000 nodes, spent 3970 milliseconds, and searched about 31486 nodes per second. In a normal result, `row,col` must be a legal move, and `depth` plus `nodes` should be greater than 0.
 
+## Walk through the starting position
+
+The standard Othello start has only four center squares occupied. In this project's coordinates, a common starting board is:
+
+```text
+row 3, col 3: white
+row 3, col 4: black
+row 4, col 3: black
+row 4, col 4: white
+```
+
+As one-dimensional indices:
+
+```text
+3 * 8 + 3 = 27  white
+3 * 8 + 4 = 28  black
+4 * 8 + 3 = 35  black
+4 * 8 + 4 = 36  white
+```
+
+If black moves first, the usual legal moves are:
+
+```text
+(2, 3), (3, 2), (4, 5), (5, 4)
+```
+
+Take `(2, 3)`. Its index is `19`. Scanning downward from `19` sees white at `27`, then black at `35`, so `27` flips to black. The flip mask contains `1 << 27`.
+
+After the move:
+
+```text
+19 changes from empty to black
+27 changes from white to black
+28 and 35 stay black
+36 stays white
+```
+
+The search does not immediately decide that this move is best. It passes the new position to the next layer and lets white choose a reply. Each white reply creates another position. Deeper search is what lets the AI see cases where a move flips many discs now but gives away a corner later.
+
+This example checks that three functions connect correctly:
+
+- `flips_for_move()` for `(2, 3)` should return a mask containing `27`.
+- `apply_move()` should make both `19` and `27` black.
+- `negamax()` should continue with white to move, not let black move twice.
+
 ## Why the board becomes bitboards
 
 The page and JavaScript use arrays because arrays are easy to inspect. The search engine needs to copy positions, find legal moves, apply moves, and flip discs many times. Doing that with an 8x8 array works, but every node carries more scanning and copying.

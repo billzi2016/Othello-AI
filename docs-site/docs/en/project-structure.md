@@ -22,6 +22,27 @@ After a player or AI move, `main.js` updates the board array. When it is the AI 
 
 Each Worker calls the Rust export `search_best_move()`. Rust returns a CSV string. The Worker parses it into an object and sends it back to the main thread. The main thread chooses the highest scoring result and writes the telemetry to the side panel.
 
+In more detail, one AI move passes through these files:
+
+1. `main.js` stores the current 8x8 board and computes legal moves for the current side.
+2. `ai-manager.js` flattens the board into 64 cells and shards legal moves.
+3. `ai-worker.js` receives one shard in a background thread and makes sure Wasm is initialized.
+4. `assets/wasm/othello_ai.js` loads the `.wasm` file and exposes the Rust function.
+5. `rust-ai/src/lib.rs` searches the best move inside that shard.
+6. `ai-worker.js` converts the CSV result into a JavaScript object.
+7. `ai-manager.js` merges all Worker results and chooses the highest score.
+8. `main.js` places the disc, flips captured discs, and updates the search table.
+
+Each layer passes a small input and output. The page layer passes the board and legal moves, the Worker layer passes shards, and the Rust layer returns score plus telemetry. That makes failures easier to isolate than treating every symptom as "the AI did not move".
+
+## Which files are edited by hand
+
+`assets/js/main.js`, `assets/js/ai-manager.js`, `assets/js/ai-worker.js`, and `rust-ai/src/lib.rs` are source files and can be edited for behavior changes.
+
+`assets/wasm/othello_ai.js` and `assets/wasm/othello_ai_bg.wasm` are build outputs. After changing Rust, do not edit those files directly. Regenerate them with the Wasm build command.
+
+`docs-site/site/` is the local MkDocs build output and is ignored by `.gitignore`. Documentation source lives in `docs-site/docs/`, and site configuration lives in `docs-site/mkdocs.yml`.
+
 ## Expected files
 
 After a complete build, these files should exist:
