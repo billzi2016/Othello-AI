@@ -7,21 +7,9 @@ The engine includes exact endgame search and stability-aware evaluation for stro
 
 在线体验：
 
-```text
-https://billzi2016.github.io/Othello-AI/
-```
-
-文档站：
-
-```text
-https://billzi2016.github.io/Othello-AI/docs/
-```
-
-算法深入说明：
-
-```text
-https://billzi2016.github.io/Othello-AI/docs/algorithm-deep-dive.zh/
-```
+- 游戏 Demo：[https://billzi2016.github.io/Othello-AI/](https://billzi2016.github.io/Othello-AI/)
+- 文档站：[https://billzi2016.github.io/Othello-AI/docs/](https://billzi2016.github.io/Othello-AI/docs/)
+- 算法深入说明：[https://billzi2016.github.io/Othello-AI/docs/algorithm-deep-dive.zh/](https://billzi2016.github.io/Othello-AI/docs/algorithm-deep-dive.zh/)
 
 ## 当前目标
 
