@@ -394,49 +394,32 @@ function evaluation(m, bTurn){
     return Math.round(score*0.01);
 }
 
-function minimax(state, depth, alpha, beta, bTurn, mm){
-    // Evaluate every leaf from the root player's perspective, not the side to move.
-    const maximizingTurn = mm ? bTurn : !bTurn;
+function negamax(state, depth, alpha, beta, bTurn, rootTurn){
+    // Keep the heuristic tied to the root player because its weights are asymmetric.
+    const color = bTurn==rootTurn ? 1 : -1;
     if( isGameOver(state) || depth==0 ){
-        return evaluation(state, maximizingTurn);
+        return color * evaluation(state, rootTurn);
     }
 
     let availableMoves = getAvailable(state, bTurn);
     if( availableMoves.length==0 ){
         // A non-terminal position with no legal move is a forced pass.
-        // Keep the board unchanged and continue with the opponent's turn.
-        return minimax(state, depth-1, alpha, beta, !bTurn, !mm);
+        return -negamax(state, depth-1, -beta, -alpha, !bTurn, rootTurn);
     }
-    if( mm ){
-        let best = -INF;
-        for(let i=0; i<availableMoves.length; i++){
-            let mp = new Point(availableMoves[i][0], availableMoves[i][1]);
-            let ns = simStep(state, mp, bTurn);
 
-            let value = minimax(ns, depth-1, alpha, beta, !bTurn, !mm);
+    let best = -INF;
+    for(let i=0; i<availableMoves.length; i++){
+        let mp = new Point(availableMoves[i][0], availableMoves[i][1]);
+        let ns = simStep(state, mp, bTurn);
 
-            best = Math.max(best, value);
-            alpha = Math.max(alpha, best);
+        let value = -negamax(ns, depth-1, -beta, -alpha, !bTurn, rootTurn);
 
-            if( alpha >= beta ) break;
-        }
-        return best;
+        best = Math.max(best, value);
+        alpha = Math.max(alpha, best);
+
+        if( alpha >= beta ) break;
     }
-    else{
-        let best = INF;
-        for(let i=0; i<availableMoves.length; i++){
-            let mp = new Point(availableMoves[i][0], availableMoves[i][1]);
-            let ns = simStep(state, mp, bTurn);
-
-            let value = minimax(ns, depth-1, alpha, beta, !bTurn, !mm);
-
-            best = Math.min(best, value);
-            beta = Math.min(beta, best);
-
-            if( alpha >= beta ) break;
-        }
-        return best;
-    }
+    return best;
 }
 
 function findBestMove(state, bTurn){
@@ -452,7 +435,7 @@ function findBestMove(state, bTurn){
 
         if( !bestMove ) bestMove = mp;
 
-        let value = minimax(ns, DEPTH-1, alpha, beta, !bTurn, false);
+        let value = -negamax(ns, DEPTH-1, -beta, -alpha, !bTurn, bTurn);
 
         if( value > bestValue ){
             bestValue = value;
