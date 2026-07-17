@@ -395,11 +395,18 @@ function evaluation(m, bTurn){
 }
 
 function minimax(state, depth, alpha, beta, bTurn, mm){
+    // Evaluate every leaf from the root player's perspective, not the side to move.
+    const maximizingTurn = mm ? bTurn : !bTurn;
     if( isGameOver(state) || depth==0 ){
-        return evaluation(state, bTurn);
+        return evaluation(state, maximizingTurn);
     }
 
     let availableMoves = getAvailable(state, bTurn);
+    if( availableMoves.length==0 ){
+        // A non-terminal position with no legal move is a forced pass.
+        // Keep the board unchanged and continue with the opponent's turn.
+        return minimax(state, depth-1, alpha, beta, !bTurn, !mm);
+    }
     if( mm ){
         let best = -INF;
         for(let i=0; i<availableMoves.length; i++){
@@ -424,7 +431,7 @@ function minimax(state, depth, alpha, beta, bTurn, mm){
             let value = minimax(ns, depth-1, alpha, beta, !bTurn, !mm);
 
             best = Math.min(best, value);
-            alpha = Math.min(alpha, best);
+            beta = Math.min(beta, best);
 
             if( alpha >= beta ) break;
         }
